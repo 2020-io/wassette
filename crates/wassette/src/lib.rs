@@ -190,6 +190,7 @@ impl LifecycleManager {
         let mut config = wasmtime::Config::new();
         config.wasm_component_model(true);
         config.async_support(true);
+        config.consume_fuel(true);
         let engine = Arc::new(wasmtime::Engine::new(&config)?);
 
         // Create the lifecycle manager
@@ -476,7 +477,11 @@ impl LifecycleManager {
     async fn get_wasi_state_for_component(
         &self,
         component_id: &str,
-    ) -> Result<(WassetteWasiState<WasiState>, Option<CustomResourceLimiter>)> {
+    ) -> Result<(
+        WassetteWasiState<WasiState>,
+        Option<CustomResourceLimiter>,
+        Option<f64>,
+    )> {
         let policy_registry = self.policy_registry.read().await;
 
         let policy_template = policy_registry
@@ -488,9 +493,10 @@ impl LifecycleManager {
         let wasi_state = policy_template.build()?;
         let allowed_hosts = policy_template.allowed_hosts.clone();
         let resource_limiter = wasi_state.resource_limiter.clone();
+        let cpu_limit = policy_template.cpu_limit;
 
         let wassette_wasi_state = WassetteWasiState::new(wasi_state, allowed_hosts)?;
-        Ok((wassette_wasi_state, resource_limiter))
+        Ok((wassette_wasi_state, resource_limiter, cpu_limit))
     }
 
     /// Executes a function call on a WebAssembly component
@@ -506,9 +512,19 @@ impl LifecycleManager {
             .await
             .ok_or_else(|| anyhow!("Component not found: {}", component_id))?;
 
-        let (state, resource_limiter) = self.get_wasi_state_for_component(component_id).await?;
+        let (state, resource_limiter, cpu_limit) =
+            self.get_wasi_state_for_component(component_id).await?;
 
         let mut store = Store::new(self.engine.as_ref(), state);
+
+        // Apply CPU limits by setting fuel if configured in the policy
+        if let Some(cpu_cores) = cpu_limit {
+            // Convert CPU cores to fuel units
+            // Using a heuristic: 1 core = 1,000,000 fuel units
+            // This can be tuned based on actual performance requirements
+            let fuel_amount = (cpu_cores * 1_000_000.0) as u64;
+            store.set_fuel(fuel_amount)?;
+        }
 
         // Apply memory limits if configured in the policy by setting up a limiter closure
         // that extracts the resource limiter from the WasiState
@@ -925,7 +941,7 @@ permissions:
             .await?;
 
         // Test getting WASI state for component with attached policy
-        let _wasi_state = manager
+        let (_wasi_state, _resource_limiter, _cpu_limit) = manager
             .get_wasi_state_for_component(TEST_COMPONENT_ID)
             .await?;
 

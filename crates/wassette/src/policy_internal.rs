@@ -466,7 +466,7 @@ impl crate::LifecycleManager {
         policy: &mut PolicyDocument,
         details: serde_json::Value,
     ) -> Result<()> {
-        // Extract the memory limit from the details - handle both original CLI format and converted ResourceLimits format
+        // Extract both memory and CPU limits from the details
         let memory_str = if let Some(memory_str) = details
             .get("resources")
             .and_then(|r| r.get("limits"))
@@ -474,19 +474,43 @@ impl crate::LifecycleManager {
             .and_then(|m| m.as_str())
         {
             // Original CLI format: {"resources": {"limits": {"memory": "512Mi"}}}
-            memory_str
+            Some(memory_str)
         } else if let Some(memory_str) = details
             .get("limits")
             .and_then(|l| l.get("memory"))
             .and_then(|m| m.as_str())
         {
             // Converted ResourceLimits format: {"limits": {"memory": "512Mi"}}
-            memory_str
+            Some(memory_str)
         } else {
-            return Err(anyhow!(
-                "Invalid resource permission format: missing memory field"
-            ));
+            None
         };
+
+        let cpu_str = if let Some(cpu_str) = details
+            .get("resources")
+            .and_then(|r| r.get("limits"))
+            .and_then(|l| l.get("cpu"))
+            .and_then(|c| c.as_str())
+        {
+            // Original CLI format: {"resources": {"limits": {"cpu": "500m"}}}
+            Some(cpu_str)
+        } else if let Some(cpu_str) = details
+            .get("limits")
+            .and_then(|l| l.get("cpu"))
+            .and_then(|c| c.as_str())
+        {
+            // Converted ResourceLimits format: {"limits": {"cpu": "500m"}}
+            Some(cpu_str)
+        } else {
+            None
+        };
+
+        // Require at least one resource limit
+        if memory_str.is_none() && cpu_str.is_none() {
+            return Err(anyhow!(
+                "Invalid resource permission format: missing memory or cpu field"
+            ));
+        }
 
         // Initialize resources if not present
         let resources = policy
@@ -499,8 +523,15 @@ impl crate::LifecycleManager {
             .limits
             .get_or_insert_with(|| policy::ResourceLimitValues::new(None, None));
 
-        // Set the memory limit
-        limits.memory = Some(policy::MemoryLimit::String(memory_str.to_string()));
+        // Set the memory limit if provided
+        if let Some(memory) = memory_str {
+            limits.memory = Some(policy::MemoryLimit::String(memory.to_string()));
+        }
+
+        // Set the CPU limit if provided
+        if let Some(cpu) = cpu_str {
+            limits.cpu = Some(policy::CpuLimit::String(cpu.to_string()));
+        }
 
         Ok(())
     }
