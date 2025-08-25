@@ -74,12 +74,12 @@ async fn test_web_search_with_network_policy_enforcement() -> Result<()> {
         }
     }
 
-    // Grant network permission for DuckDuckGo API
+    // Grant network permission for Brave Search API
     let grant_result = manager
         .grant_permission(
             &component_id,
             "network",
-            &serde_json::json!({"host": "api.duckduckgo.com"}),
+            &serde_json::json!({"host": "api.search.brave.com"}),
         )
         .await;
 
@@ -141,12 +141,12 @@ async fn test_web_search_with_parameters() -> Result<()> {
         .load_component(&format!("file://{}", component_path.to_str().unwrap()))
         .await?;
 
-    // Grant network permission for DuckDuckGo API
+    // Grant network permission for Brave Search API
     manager
         .grant_permission(
             &component_id,
             "network",
-            &serde_json::json!({"host": "api.duckduckgo.com"}),
+            &serde_json::json!({"host": "api.search.brave.com"}),
         )
         .await?;
 
@@ -208,12 +208,12 @@ async fn test_web_search_max_results_limiting() -> Result<()> {
         .load_component(&format!("file://{}", component_path.to_str().unwrap()))
         .await?;
 
-    // Grant network permission for DuckDuckGo API
+    // Grant network permission for Brave Search API
     manager
         .grant_permission(
             &component_id,
             "network",
-            &serde_json::json!({"host": "api.duckduckgo.com"}),
+            &serde_json::json!({"host": "api.search.brave.com"}),
         )
         .await?;
 
@@ -280,7 +280,7 @@ async fn test_web_search_with_different_host_still_denied() -> Result<()> {
         )
         .await?;
 
-    // Try web search - should be denied because we don't have permission for api.duckduckgo.com
+    // Try web search - should be denied because we don't have permission for api.search.brave.com
     let result = manager
         .execute_component_call(
             &component_id,
@@ -302,14 +302,14 @@ async fn test_web_search_with_different_host_still_denied() -> Result<()> {
                 println!("⚠️  Skipping test: web-search function not exported by component");
                 return Ok(()); // Test passes with known limitation
             } else {
-                panic!("Expected request to DuckDuckGo API to be denied when only example.com is allowed, got: {e}");
+                panic!("Expected request to Brave Search API to be denied when only example.com is allowed, got: {e}");
             }
         }
         Ok(response) => {
             if response.contains("HttpRequestDenied") {
-                println!("✅ Request to unauthorized DuckDuckGo API properly blocked!");
+                println!("✅ Request to unauthorized Brave Search API properly blocked!");
             } else {
-                panic!("Expected request to DuckDuckGo API to be denied when only example.com is allowed, got: {response}");
+                panic!("Expected request to Brave Search API to be denied when only example.com is allowed, got: {response}");
             }
         }
     }
