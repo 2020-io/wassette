@@ -44,6 +44,11 @@ pub enum Commands {
         #[command(subcommand)]
         command: PermissionCommands,
     },
+    /// Manage component secrets.
+    Secret {
+        #[command(subcommand)]
+        command: SecretCommands,
+    },
 }
 
 #[derive(Parser, Debug, Clone, Serialize, Deserialize)]
@@ -222,6 +227,48 @@ pub enum RevokePermissionCommands {
         component_id: String,
         /// Environment variable key
         key: String,
+        /// Directory where plugins are stored. Defaults to $XDG_DATA_HOME/wassette/components
+        #[arg(long)]
+        plugin_dir: Option<PathBuf>,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+pub enum SecretCommands {
+    /// List secrets for a component.
+    List {
+        /// Component ID to list secrets for
+        component_id: String,
+        /// Show secret values (prompts for confirmation)
+        #[arg(long)]
+        show_values: bool,
+        /// Skip confirmation prompt when showing values
+        #[arg(long)]
+        yes: bool,
+        /// Directory where plugins are stored. Defaults to $XDG_DATA_HOME/wassette/components
+        #[arg(long)]
+        plugin_dir: Option<PathBuf>,
+        /// Output format
+        #[arg(short = 'o', long = "output-format", default_value = "json")]
+        output_format: OutputFormat,
+    },
+    /// Set secrets for a component.
+    Set {
+        /// Component ID to set secrets for
+        component_id: String,
+        /// Secrets in KEY=VALUE format. Can be specified multiple times.
+        #[arg(value_parser = crate::parse_env_var)]
+        secrets: Vec<(String, String)>,
+        /// Directory where plugins are stored. Defaults to $XDG_DATA_HOME/wassette/components
+        #[arg(long)]
+        plugin_dir: Option<PathBuf>,
+    },
+    /// Delete secrets for a component.
+    Delete {
+        /// Component ID to delete secrets from
+        component_id: String,
+        /// Secret keys to delete
+        keys: Vec<String>,
         /// Directory where plugins are stored. Defaults to $XDG_DATA_HOME/wassette/components
         #[arg(long)]
         plugin_dir: Option<PathBuf>,

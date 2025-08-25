@@ -4906,6 +4906,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "component2json",
+ "etcetera",
  "futures",
  "http",
  "hyper",
