@@ -273,7 +273,14 @@ async fn create_lifecycle_manager(plugin_dir: Option<PathBuf>) -> Result<Lifecyc
         .context("Failed to load configuration")?
     };
 
-    LifecycleManager::new_with_env(&config.plugin_dir, config.environment_vars).await
+    LifecycleManager::new_with_config(
+        &config.plugin_dir,
+        config.environment_vars,
+        &config.secrets_dir,
+        oci_client::Client::default(),
+        reqwest::Client::default(),
+    )
+    .await
 }
 
 impl McpServer {
@@ -500,10 +507,12 @@ async fn main() -> Result<()> {
                 let config =
                     config::Config::from_serve(cfg).context("Failed to load configuration")?;
 
-                // Create unloaded lifecycle manager for fast startup
-                let lifecycle_manager = LifecycleManager::new_unloaded_with_env(
+                let lifecycle_manager = LifecycleManager::new_with_config(
                     &config.plugin_dir,
                     config.environment_vars,
+                    &config.secrets_dir,
+                    oci_client::Client::default(),
+                    reqwest::Client::default(),
                 )
                 .await?;
 
@@ -810,6 +819,118 @@ async fn main() -> Result<()> {
                         OutputFormat::Json,
                     )
                     .await?;
+                }
+            },
+            Commands::Secret { command } => match command {
+                SecretCommands::List {
+                    component_id,
+                    show_values,
+                    yes,
+                    plugin_dir,
+                    output_format,
+                } => {
+                    let lifecycle_manager = create_lifecycle_manager(plugin_dir.clone()).await?;
+
+                    // Prompt for confirmation if showing values
+                    if *show_values && !*yes {
+                        print!("Show secret values? [y/N]: ");
+                        std::io::Write::flush(&mut std::io::stdout())?;
+                        let mut input = String::new();
+                        std::io::stdin().read_line(&mut input)?;
+                        if !input.trim().eq_ignore_ascii_case("y") {
+                            println!("Cancelled.");
+                            return Ok(());
+                        }
+                    }
+
+                    let secrets = lifecycle_manager
+                        .list_component_secrets(component_id, *show_values)
+                        .await?;
+
+                    let result = if *show_values {
+                        secrets
+                            .into_iter()
+                            .map(|(k, v)| {
+                                json!({
+                                    "key": k,
+                                    "value": v.unwrap_or_else(|| "<not found>".to_string())
+                                })
+                            })
+                            .collect::<Vec<_>>()
+                    } else {
+                        secrets
+                            .into_keys()
+                            .map(|k| json!({"key": k}))
+                            .collect::<Vec<_>>()
+                    };
+
+                    print_result(
+                        &rmcp::model::CallToolResult {
+                            content: Some(vec![rmcp::model::Content::text(
+                                serde_json::to_string_pretty(&json!({
+                                    "component_id": component_id,
+                                    "secrets": result
+                                }))?,
+                            )]),
+                            structured_content: None,
+                            is_error: None,
+                        },
+                        *output_format,
+                    )?;
+                }
+                SecretCommands::Set {
+                    component_id,
+                    secrets,
+                    plugin_dir,
+                } => {
+                    let lifecycle_manager = create_lifecycle_manager(plugin_dir.clone()).await?;
+                    lifecycle_manager
+                        .set_component_secrets(component_id, secrets)
+                        .await?;
+
+                    let result = json!({
+                        "status": "success",
+                        "component_id": component_id,
+                        "message": format!("Set {} secret(s) for component", secrets.len())
+                    });
+
+                    print_result(
+                        &rmcp::model::CallToolResult {
+                            content: Some(vec![rmcp::model::Content::text(
+                                serde_json::to_string_pretty(&result)?,
+                            )]),
+                            structured_content: None,
+                            is_error: None,
+                        },
+                        OutputFormat::Json,
+                    )?;
+                }
+                SecretCommands::Delete {
+                    component_id,
+                    keys,
+                    plugin_dir,
+                } => {
+                    let lifecycle_manager = create_lifecycle_manager(plugin_dir.clone()).await?;
+                    lifecycle_manager
+                        .delete_component_secrets(component_id, keys)
+                        .await?;
+
+                    let result = json!({
+                        "status": "success",
+                        "component_id": component_id,
+                        "message": format!("Deleted {} secret(s) from component", keys.len())
+                    });
+
+                    print_result(
+                        &rmcp::model::CallToolResult {
+                            content: Some(vec![rmcp::model::Content::text(
+                                serde_json::to_string_pretty(&result)?,
+                            )]),
+                            structured_content: None,
+                            is_error: None,
+                        },
+                        OutputFormat::Json,
+                    )?;
                 }
             },
         },

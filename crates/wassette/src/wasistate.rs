@@ -212,16 +212,16 @@ pub(crate) fn extract_env_vars(
     secrets: Option<&HashMap<String, String>>,
 ) -> anyhow::Result<HashMap<String, String>> {
     let mut env_vars = HashMap::new();
-    
+
     // Add secrets first (lowest precedence)
     if let Some(secrets_map) = secrets {
         env_vars.extend(secrets_map.clone());
     }
-    
+
     // Add inherited environment vars (middle precedence)
     // Note: This would require passing process environment, but for now
     // we'll just add configured environment_vars which act as inherited
-    
+
     // Add policy-allowed environment variables (highest precedence)
     if let Some(env_perms) = &policy.permissions.environment {
         if let Some(env_allow_vec) = &env_perms.allow {
@@ -232,7 +232,7 @@ pub(crate) fn extract_env_vars(
             }
         }
     }
-    
+
     Ok(env_vars)
 }
 

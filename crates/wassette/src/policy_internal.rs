@@ -101,7 +101,11 @@ impl crate::LifecycleManager {
         tokio::fs::write(&metadata_path, serde_json::to_string_pretty(&metadata)?).await?;
 
         // Load secrets for the component
-        let secrets = self.secrets_manager.load_component_secrets(component_id).await.ok();
+        let secrets = self
+            .secrets_manager
+            .load_component_secrets(component_id)
+            .await
+            .ok();
 
         let wasi_template = crate::create_wasi_state_template_from_policy(
             &policy,
@@ -528,8 +532,12 @@ impl crate::LifecycleManager {
         policy: &PolicyDocument,
     ) -> Result<()> {
         // Load secrets for the component
-        let secrets = self.secrets_manager.load_component_secrets(component_id).await.ok();
-        
+        let secrets = self
+            .secrets_manager
+            .load_component_secrets(component_id)
+            .await
+            .ok();
+
         let wasi_template = crate::create_wasi_state_template_from_policy(
             policy,
             &self.plugin_dir,
