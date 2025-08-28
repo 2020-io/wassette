@@ -2,7 +2,7 @@
 authors = ["Microsoft"]
 description = "Documentation for Wassette - A security-oriented runtime that runs WebAssembly Components via MCP"
 language = "en"
-src = "src"
+src = "."
 title = "Wassette Documentation"
 
 [build]
