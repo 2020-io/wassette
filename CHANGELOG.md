@@ -6,6 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 
+- Restructured documentation directory layout by moving all files from `/docs/src/` to `/docs/` for simplified navigation and maintenance ([#TBD](https://github.com/microsoft/wassette/pull/TBD))
 - Updated documentation to clarify Wassette as a runtime rather than a platform, with improved wording for creating WebAssembly components that can be used as Tools for AI Agents with Wassette ([#TBD](https://github.com/microsoft/wassette/pull/TBD))
 - Disabled the security audit job from GitHub Actions workflow to reduce CI noise ([#TBD](https://github.com/microsoft/wassette/pull/TBD))
 
