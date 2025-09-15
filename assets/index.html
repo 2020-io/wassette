@@ -192,9 +192,17 @@
                 target = iframe_wasm
                 print(f"wasm innerText", target.innerText)
                 print(f"wasm innerHTML", target.innerHTML)
+
                 wasm = target.innerHTML;
-                # TODO
+                print("wasm", wasm) # TODO: use it
+
+                if wasm and len(wasm) > 0:
+                  print("Removing old iframe", iframe_element)
+                  iframe_element.outerHTML = "" # overwrite the iframe
+                  iframe_element = None
           `);
+          console.log("old iframe", iframe_element); // this should be deleted now
+          iframe_element = null;
         } else {
           await pyodide.runPython(`
             import inspect
