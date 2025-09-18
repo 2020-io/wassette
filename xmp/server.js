@@ -20,11 +20,11 @@ registerResources(xmpMpcServer);
 
 // Mount MCP endpoint on Fastify
 fastify.post('/mcp', async (req, reply) => {
-  const transport = new HttpServerTransport({
+  const transport = new StreamableHTTPServerTransport({
     request: req.raw,
     response: reply.raw,
   });
-  await xmpMpcServer.handle(transport);
+  await xmpMpcServer.connect(transport);
 });
 
 // Example non-MCP Fastify route
