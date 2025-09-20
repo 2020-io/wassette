@@ -1,7 +1,4 @@
-"""
-FastMCP Echo Server
-"""
-
+#!/usr/bin/env python3.13
 from fastmcp import FastMCP
 
 # Create server
