@@ -8,13 +8,15 @@
 NODE_ARGS="--inspect"
 if [ "$1" == "debug" ]
 then
+  NODE_ENV=development
   NODE_DEBUG="*"
   NODE_DEBUG_NATIVE="*"
   #NODE_ARGS="$NODE_ARGS --inspect-brk"
   shift
+else
+  NODE_ENV=production
 fi
 
-NODEJS_FILE=""
 if [ "$1" == "client" ]
 then
   NODEJS_FILE=wasmagent_client.mjs
@@ -23,6 +25,8 @@ elif [ "$1" == "server" ]
 then
   NODEJS_FILE=wasmagent_server.mjs
   shift
+else
+  NODEJS_FILE="$1"
 fi
 
 if [ ! -f "$NODEJS_FILE" ]
