@@ -9,15 +9,23 @@ then
 fi
 
 FASTMCP_FILE=echo.py
-FASTMCP_ARGS="run --no-banner"
 
-if [ "$1" == "debug" ]
+if [ "$1" == "dev" ]
 then
-  FASTMCP_ARGS="$FASTMCP_ARGS --log-level=DEBUG"
+  FASTMCP_ARGS="dev"
   shift
+elif [ "$1" == "debug" ]
+then
+  FASTMCP_ARGS="run --log-level=DEBUG"
+  shift
+else
+  FASTMCP_ARGS="run --no-banner"
 fi
 
-if [ "$1" == "stdio" ]
+if [ "$FASTMCP_ARGS" == "dev" ]
+then
+  echo "Running in dev mode"
+elif [ "$1" == "stdio" ]
 then
   FASTMCP_ARGS="$FASTMCP_ARGS --transport=stdio"
   shift

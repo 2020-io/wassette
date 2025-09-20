@@ -1,0 +1,13 @@
+Usage: wassette [OPTIONS] [COMMAND]
+
+Commands:
+  serve       Begin handling requests over the specified protocol
+  component   Manage WebAssembly components
+  policy      Manage component policies
+  permission  Manage component permissions
+  help        Print this message or the help of the given subcommand(s)
+
+Options:
+  -V, --version                  Print version information
+      --plugin-dir <PLUGIN_DIR>  Directory where plugins are stored (ignored when using --version)
+  -h, --help                     Print help
