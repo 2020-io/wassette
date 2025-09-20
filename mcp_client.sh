@@ -1,18 +1,29 @@
 #!/usr/bin/env bash
 
+if [ "$1" == "debug" ]
+then
+  CURL_ARGS="--insecure --verbose"
+  shift
+else
+  CURL_ARGS="--insecure"
+fi
+
 if [ $# -gt 0 ]
 then
   URL="$1"
   shift
 else
-  #URL="http://127.0.1.1:9001/mcp" # running on host
-  URL="http://localhost:9001/mcp"
+  URL="http://localhost:8000/mcp" # fastmcp
+  #URL="http://localhost:9001/mcp" # wassette
 fi
 
 JSON_RPC_DATA=
 
 echo "MCP server @ $URL"
-curl --insecure --verbose -H "Content-Type: application/json" -d '{
+curl $CURL_ARGS \
+-H "Content-Type: application/json" \
+-H "Accept: application/json, text/event-stream" \
+-d '{
   "jsonrpc": "2.0",
   "id": 1,
   "method": "initialize",
