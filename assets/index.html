@@ -204,7 +204,7 @@
           console.log("old iframe", iframe_element); // this should be deleted now
           iframe_element = null;
         } else {
-          await pyodide.runPython(`
+          await pyodide.runPythonAsync(`
             import inspect
             self = inspect.currentframe()
             id = id(self)

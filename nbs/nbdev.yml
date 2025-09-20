@@ -1,0 +1,9 @@
+project:
+  output-dir: _docs
+
+website:
+  title: "wassette"
+  site-url: "https://2020-io.github.io/wassette"
+  description: "Wassette: A security-oriented runtime that runs WebAssembly Components via MCP"
+  repo-branch: main
+  repo-url: "https://github.com/2020-io/wassette"
