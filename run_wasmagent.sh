@@ -4,19 +4,17 @@
 # https://nodejs.org/en/docs/inspector
 # https://nodejs.org/en/learn/getting-started/debugging
 
-NODE_DEBUG="*"
-NODE_DEBUG_NATIVE="*"
-unset NODE_DEBUG # NODE_PATH=`pwd`
-
 #NODE_ARGS=""
 NODE_ARGS="--inspect"
 if [ "$1" == "debug" ]
 then
-  NODE_ARGS="$NODE_ARGS --inspect-brk"
+  NODE_DEBUG="*"
+  NODE_DEBUG_NATIVE="*"
+  #NODE_ARGS="$NODE_ARGS --inspect-brk"
   shift
 fi
 
-WASM_FILE=WASM/wasm/hello_stdout.wasm
+NODEJS_FILE=""
 if [ "$1" == "client" ]
 then
   NODEJS_FILE=wasmagent_client.mjs
@@ -24,34 +22,17 @@ then
 elif [ "$1" == "server" ]
 then
   NODEJS_FILE=wasmagent_server.mjs
-elif [ $# -gt 0 ]
-then
-  WASM_FILE="$1"
   shift
-  if [ ! -f "$WASM_FILE" ]
-  then
-    echo "WASM file $WASM_FILE does not exist"
-    exit 1
-  fi
 fi
 
-if [ -f "$WASM_FILE" ]
+if [ ! -f "$NODEJS_FILE" ]
 then
-  WASMTOOLS_ARGS="--color=never -vvv"
-  wasm-tools validate $WASMTOOLS_ARGS "$WASM_FILE"
-  err=$?
-  if [ $err -ne 0 ]
-  then
-    echo "wasm-tools valid \"$WASM_FILE\" returned $err"
-    exit $err
-  fi
-  #wasm-tools parse $WASMTOOLS_ARGS -t "$WASM_FILE"
-  #wasm-tools print $WASMTOOLS_ARGS --print-offsets "$WASM_FILE"
-  wasm-tools objdump $WASMTOOLS_ARGS "$WASM_FILE"
-  wasmtime run $WASM_FILE
-  exit
+  echo "Usage: $0 [debug] server [args]"
+  echo "Usage: $0 [debug] client [args]"
+  echo "Usage: $0 [debug] path_to_wasmagent.mjs [args]"
+  exit 1
 fi
 
-echo "-> node $NODE_ARGS \"$NODEJS_FILE\""
-node $NODE_ARGS "$NODEJS_FILE"
+echo "-> node $NODE_ARGS \"$NODEJS_FILE\" $*"
+node $NODE_ARGS "$NODEJS_FILE" $*
 echo "<- node returned $?"
