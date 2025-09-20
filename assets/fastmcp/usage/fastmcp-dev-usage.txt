@@ -1,0 +1,15 @@
+Usage: fastmcp dev [ARGS] [OPTIONS]
+
+Run an MCP server with the MCP Inspector for development.
+
+╭─ Parameters ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ SERVER-SPEC --server-spec  Python file to run, optionally with :object suffix, or None to auto-detect fastmcp.json                                       │
+│ --with-editable            Directory containing pyproject.toml to install in editable mode (can be used multiple times)                                  │
+│ --with                     Additional packages to install (can be used multiple times)                                                                   │
+│ --inspector-version        Version of the MCP Inspector to use                                                                                           │
+│ --ui-port                  Port for the MCP Inspector UI                                                                                                 │
+│ --server-port              Port for the MCP Inspector Proxy server                                                                                       │
+│ --python                   Python version to use (e.g., 3.10, 3.11)                                                                                      │
+│ --with-requirements        Requirements file to install dependencies from                                                                                │
+│ --project                  Run the command within the given project directory                                                                            │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
