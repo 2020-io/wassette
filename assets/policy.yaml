@@ -1,0 +1,15 @@
+version: "1.0"
+description: "Permission policy for WASM components"
+permissions:
+  network:
+    allow:
+      - host: "*"
+  storage:
+    allow:
+      - uri: "fs:///var/www/assets"
+        access: ["read"]
+  environment:
+    allow:
+      - key: "OPENAI_API_KEY"
+      - key: "ANTHROPIC_API_KEY"
+      - key: "GEMINI_API_KEY"
