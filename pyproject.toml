@@ -5,9 +5,11 @@ version = "1.0.0"
 description = "The fast, Pythonic way to build WASM AI agents."
 authors = [{ name = "WasmAgents" }]
 dependencies = [
+    "uv-build<0.8.20",
     "fastmcp>=2.12.2",
     "python-dotenv>=1.1.0",
     "exceptiongroup>=1.2.2",
+    "setuptools>=0.80.9",
     "httpx>=0.28.1",
     "asyncio>=4.0.0",
     "mcp>=1.12.4,<2.0.0",
@@ -85,8 +87,6 @@ Documentation = "https://gofastmcp.com"
 websockets = ["websockets>=15.0.1"]
 
 [build-system]
-#requires = ["hatchling", "uv-dynamic-versioning>=0.7.0"]
-#build-backend = "hatchling.build"
 requires = ["uv_build"]
 build-backend = "uv_build"
 
@@ -96,12 +96,6 @@ no-build-isolation = true
 #[tool.uv_build.version]
 #source = "uv-dynamic-versioning"
 #[tool.uv_build.metadata]
-#allow-direct-references = true
-
-#[tool.hatch.version]
-#source = "uv-dynamic-versioning"
-
-#[tool.hatch.metadata]
 #allow-direct-references = true
 
 #[tool.uv-dynamic-versioning]
