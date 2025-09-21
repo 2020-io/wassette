@@ -26,18 +26,20 @@ then
   exit 1
 fi
 
-echo "-> pip install -r requirements.txt"
+echo "-> pip install --python=3.13 -r requirements.txt"
 #pip install -r "${ROOT}/requirements.txt"
+uv pip install --python=3.13 --requirements="${ROOT}/requirements.txt"
 err=$?
 echo -e "<- pip install -r \"requirements.txt\" returned $err\n"
 if [ $err -ne 0 ]; then exit $err; fi
 
 which python
 python --version
-#echo "-> uv run --python=3.13 python --version" > /dev/stderr
-#uv run --python=3.13 python --version
-#err=$?
-#echo -e "<- uv run python --version returned $err\n" > /dev/stderr
+echo "-> uv run -vvv --python=3.13 python --version" > /dev/stderr
+uv run -vvv --python=3.13 python --version
+err=$?
+echo -e "<- uv run python --version returned $err\n" > /dev/stderr
+exit 0
 
 echo "-> install fastmcp" > /dev/stderr
 #pip install --no-build-isolation fastmcp

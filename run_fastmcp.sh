@@ -23,7 +23,7 @@ JSON_FILE=wasmagents.fastmcp.json
 FASTMCP_FILE=wasmagents.py
 # --server-spec="wasmagents.fastmcp.json:${FASTMCP_FILE}"
 
-rm -f inspect_output.*
+#rm -f inspect_output.*
 
 which python
 python --version
