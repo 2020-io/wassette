@@ -1,6 +1,7 @@
 [project]
 name = "wasmagents"
-dynamic = ["version"]
+version = "1.0.0"
+#dynamic = ["version"]
 description = "The fast, Pythonic way to build WASM AI agents."
 authors = [{ name = "WasmAgents" }]
 dependencies = [
@@ -84,21 +85,30 @@ Documentation = "https://gofastmcp.com"
 websockets = ["websockets>=15.0.1"]
 
 [build-system]
-requires = ["hatchling", "uv-dynamic-versioning>=0.7.0"]
-build-backend = "hatchling.build"
+#requires = ["hatchling", "uv-dynamic-versioning>=0.7.0"]
+#build-backend = "hatchling.build"
+requires = ["uv_build"]
+build-backend = "uv_build"
 
-[tool.hatch.version]
-source = "uv-dynamic-versioning"
+[tool.uv]
+no-build-isolation = true
 
-[tool.hatch.metadata]
-allow-direct-references = true
+#[tool.uv_build.version]
+#source = "uv-dynamic-versioning"
+#[tool.uv_build.metadata]
+#allow-direct-references = true
 
-[tool.uv-dynamic-versioning]
-vcs = "git"
-style = "pep440"
-bump = true
-fallback-version = "0.0.0"
+#[tool.hatch.version]
+#source = "uv-dynamic-versioning"
 
+#[tool.hatch.metadata]
+#allow-direct-references = true
+
+#[tool.uv-dynamic-versioning]
+#vcs = "git"
+#style = "pep440"
+#bump = true
+#fallback-version = "0.0.0"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
