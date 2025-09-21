@@ -1,0 +1,14 @@
+fastmcp>=2.12.2
+python-dotenv>=1.1.0
+exceptiongroup>=1.2.2
+httpx>=0.28.1
+asyncio>=4.0.0
+mcp>=1.14
+openapi-pydantic>=0.5.1
+rich>=13.9.4
+cyclopts>=3.0.0
+authlib>=1.5.2
+pydantic[email]>=2.11.7
+pyperclip>=1.9.0
+openapi-core>=0.19.5
+openai>=1.95.1
