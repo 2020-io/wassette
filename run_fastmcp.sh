@@ -84,7 +84,14 @@ echo "* node dir: ${NODE_DIR}"
 #############################################################################
 
 VENV_DIR="${PROJECT_ROOT}/.venv"
-VENV_FILE="${VENV_DIR}/bin/activate"
+
+if [ -d "${VENV_DIR}/bin" ]
+then
+  VENV_FILE="${VENV_DIR}/bin/activate"
+else
+  VENV_FILE="${VENV_DIR}/Scripts/activate"
+fi
+
 if [ -f "${VENV_FILE}" ]
 then
   echo "Loading \"${VENV_FILE}\"" > /dev/stderr
@@ -114,12 +121,12 @@ python --version
 err=$?
 echo -e "<- python --version returned $err\n" > /dev/stderr
 if [ $err -ne 0 ]; then exit $err; fi
-
+echo "$PATH" | awk -v RS=':' '1'
 echo "-> uvx ${UVX_ARGS} ${UV_COMMON_ARGS} python --version" > /dev/stderr
 uvx ${UVX_ARGS} ${UV_COMMON_ARGS} python --version
 err=$?
 echo -e "<- uvx python --version returned $err\n" > /dev/stderr
-if [ $err -ne 0 ]; then exit $err; fi
+#if [ $err -ne 0 ]; then exit $err; fi
 
 echo "-> uv run ${UV_RUN_ARGS} ${UV_COMMON_ARGS} python --version" > /dev/stderr
 uv run ${UV_RUN_ARGS} ${UV_COMMON_ARGS} python --version < /dev/null
@@ -131,7 +138,9 @@ if [ $err -ne 0 ]; then exit $err; fi
 
 SERVER_SPEC="${FASTMCP_FILE}"
 #SERVER_SPEC="${FASTMCP_FILE}:${JSON_FILE}"
-FASTMCP_ARGS="${FASTMCP_ARGS} --server-spec=${SERVER_SPEC}"
+# No need to include --with-requirements=.../requirements.txt for fastmcp commands
+FASTMCP_ARGS="--server-spec=${SERVER_SPEC}"
+
 echo "FASTMCP_ARGS=${FASTMCP_ARGS}"
 
 rm -f *mcp.out
