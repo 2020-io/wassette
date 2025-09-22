@@ -6,10 +6,10 @@ description = "The fast, Pythonic way to build WASM AI agents."
 authors = [{ name = "WasmAgents" }]
 dependencies = [
     "uv-build<0.8.20",
+    "setuptools>=0.80.9",
     "fastmcp>=2.12.2",
     "python-dotenv>=1.1.0",
     "exceptiongroup>=1.2.2",
-    "setuptools>=0.80.9",
     "httpx>=0.28.1",
     "asyncio>=4.0.0",
     "mcp>=1.12.4,<2.0.0",
@@ -91,12 +91,13 @@ requires = ["uv_build"]
 build-backend = "uv_build"
 
 [tool.uv]
-no-build-isolation = true
+no-build-isolation = false
+
+#[tool.uv_build.metadata]
+#allow-direct-references = true
 
 #[tool.uv_build.version]
 #source = "uv-dynamic-versioning"
-#[tool.uv_build.metadata]
-#allow-direct-references = true
 
 #[tool.uv-dynamic-versioning]
 #vcs = "git"
