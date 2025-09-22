@@ -1,9 +1,30 @@
+.env*
+.well-known
+.DS_Store
+.github
+.git
+
+# python related
+*.nbdev
+/nbdev-template*
+/venv*.txt
+*.sorted
+*.unsorted
+*.pp.json
+__pycache__
+
+/assets/artifacts
+/assets/artifacts.old
+/assets/fastmcp/docs
+/assets/fastmcp/src
+/assets/marimo*
+
 /target
 /bin
-.DS_Store
 /result
-# Env and .envrc files
-.env*
+/logs
+/old
+*.old
 
 # mdbook output
 /docs/book
