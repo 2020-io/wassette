@@ -1,90 +1,194 @@
 #!/usr/bin/env bash
 
-if [ -z `which fastmcp` ]
-then
-  echo "-> pip install fastmcp" > /dev/stderr
-  pip install fastmcp
-  err=$?
-  echo -e "<- pip install fastmcp returned $err\n" > /dev/stderr
+DIR=`pwd`
+echo "Running in: ${DIR}"
+PROJECT_ROOT=`dirname $0`
+pushd "${PROJECT_ROOT}" > /dev/null
+PROJECT_ROOT=`pwd`
+popd > /dev/null
+echo "Project root: ${PROJECT_ROOT}"
 
-  echo "-> pip install httpx" > /dev/stderr
-  pip install httpx
-  err=$?
-  echo -e "<- pip install http returned $err\n" > /dev/stderr
-
-  echo "-> pip install asyncio" > /dev/stderr
-  pip install asyncio
-  err=$?
-  echo -e "<- pip install fastmcp returned $err\n" > /dev/stderr
-fi
-
-#JSON_FILE=# fastmcp.json
-JSON_FILE=wasmagents.fastmcp.json
-FASTMCP_FILE=wasmagents.py
-# --server-spec="wasmagents.fastmcp.json:${FASTMCP_FILE}"
-
-#rm -f inspect_output.*
-
-which python
-python --version
-echo
-
-echo "-> fastmcp inspect --server-spec=${FASTMCP_FILE} --format=mcp --output=inspect_output.mcp" > /dev/null
-fastmcp inspect --python=3.11 --skip-env --server-spec=${FASTMCP_FILE} --format=mcp --output=inspect_output.mcp
-#fastmcp inspect --skip-env --server-spec=${FASTMCP_FILE} --format=mcp --output=inspect_output.mcp
-err=$?
-ls -l inspect_output.mcp
-echo -e "<- fastmcp inspect returned $err\n" > /dev/stderr
-if [ $err -ne 0 ]; then exit $err; fi
-#more inspect_output.mcp
-echo
-
-echo "-> fastmcp inspect --server-spec=${FASTMCP_FILE} --format=fastmcp --output=inspect_output.fastmcp" > /dev/null
-fastmcp inspect --python=3.11 --skip-env --server-spec=${FASTMCP_FILE} --format=fastmcp --output=inspect_output.fastmcp
-#fastmcp inspect --skip-env --server-spec=${FASTMCP_FILE} --format=fastmcp --output=inspect_output.fastmcp
-err=$?
-ls -l inspect_output.fastmcp
-echo -e "<- fastmcp inspect returned $err\n" > /dev/stderr
-if [ $err -ne 0 ]; then exit $err; fi
-#more inspect_output.fastmcp
-echo
+UV_COMMON_ARGS="--python=3.13"
 
 DEV=0
+UV_RUN_ARGS=""
+UVX_ARGS=""
 if [ "$1" == "dev" ]
 then
+  echo "* In development mode"
   DEV=1
-  #FASTMCP_ARGS="dev --python=3.13 --server-spec=${FASTMCP_FILE}" # "--server-spec=${JSON_FILE}:${FASTMCP_FILE}"
-  FASTMCP_ARGS="dev --server-spec=${FASTMCP_FILE}" # "--server-spec=${JSON_FILE}:${FASTMCP_FILE}"
+  RUN_ARGS="dev"
+  #UV_COMMON_ARGS=""
   shift
 elif [ "$1" == "debug" ]
 then
-  #FASTMCP_ARGS="run --log-level=DEBUG --python=3.13"
-  FASTMCP_ARGS="run --log-level=DEBUG"
+  echo "* Debug logging"
+  RUN_ARGS="run --log-level=DEBUG"
+  #RUN_ARGS="$RUN_ARGS --skip-env"
+  UV_RUN_ARGS="-v"
+  UVX_ARGS="-v"
+  shift
+elif [ "$1" == "trace" ]
+then
+  echo "* Trace logging"
+  RUN_ARGS="run --log-level=DEBUG" # fastmcp run only goes to DEBUG
+  #RUN_ARGS="$RUN_ARGS --skip-env"
+  UV_RUN_ARGS="-vvv"
+  UVX_RUN_ARGS="-vvv"
   shift
 else
-  #FASTMCP_ARGS="run --no-banner --python=3.13"
-  FASTMCP_ARGS="run --no-banner"
-fi
-FASTMCP_ARGS="$FASTMCP_ARGS --skip-env --with-requirements=${ROOT}/requirements.txt"
-
-if [ $DEV -eq 1 ]
-then
-  echo "Running in dev mode"
-elif [ "$1" == "stdio" ]
-then
-  FASTMCP_ARGS="$FASTMCP_ARGS --transport=stdio"
-  shift
-else
-  FASTMCP_ARGS="$FASTMCP_ARGS --transport=streamable-http"
+  RUN_ARGS="run --no-banner"
+  #RUN_ARGS="$RUN_ARGS --skip-env"
 fi
 
+#JSON_FILE=fastmcp.json
+JSON_FILE=wasmagents.fastmcp.json
+FASTMCP_FILE=wasmagents.py
 if [ $# -gt 0 ]
 then
   FASTMCP_FILE="$1"
   shift
 fi
 
-echo "-> fastmcp $FASTMCP_ARGS \"$FASTMCP_FILE\"" > /dev/stderr
-fastmcp $FASTMCP_ARGS "$FASTMCP_FILE"
+REQUIREMENTS_FILE="${PROJECT_ROOT}/requirements.txt"
+if [ -f "${REQUIREMENTS_FILE}" ]
+then
+  UV_RUN_ARGS="--with-requirements=${REQUIREMENTS_FILE} ${UV_RUN_ARGS}"
+  UVX_ARGS="--with-requirements=${REQUIREMENTS_FILE} ${UVX_RUN_ARGS}"
+  FASTMCP_ARGS="--with-requirements=${REQUIREMENTS_FILE}"
+else
+  echo "No requirements file \"${REQUIREMENTS_FILE}\""
+  FASTMCP_ARGS=""
+fi
+
+UV_RUN_ARGS="--no-cache --managed-python $UV_RUN_ARGS"
+UVX_ARGS="--no-cache --managed-python $UVX_ARGS"
+
+#echo UVX_ARGS="${UVX_ARGS}"
+#echo UV_RUN_ARGS="${UV_RUN_ARGS}"
+#echo RUN_ARGS="${RUN_ARGS}"
+#echo FASTMCP_ARGS="${FASTMCP_ARGS}"
+
+#############################################################################
+
+NPX=`which npx`
+echo "* npx path: ${NPX}"
+NPX_DIR=`dirname "${NPX}"`
+echo "* npx dir: ${NPX_DIR}"
+
+NODE=`which node`
+echo "* node path: ${NODE}"
+NODE_DIR=`dirname "${NODE}"`
+echo "* node dir: ${NODE_DIR}"
+
+#############################################################################
+
+VENV_DIR="${PROJECT_ROOT}/.venv"
+VENV_FILE="${VENV_DIR}/bin/activate"
+if [ -f "${VENV_FILE}" ]
+then
+  echo "Loading \"${VENV_FILE}\"" > /dev/stderr
+  source "${VENV_FILE}"
+  err=$?
+  if [ $err -ne 0 ]; then exit $err; fi
+fi
+
+echo
+echo "-> uv pip list ${UV_COMMON_ARGS}" > /dev/stderr
+uv pip list ${UV_COMMON_ARGS}
 err=$?
-echo "<- fastmcp returned $err" > /dev/stderr
+echo -e "<- uv pip list returned $err\n" > /dev/stderr
+if [ $err -ne 0 ]; then exit $err; fi
+
+echo "-> pip list" > /dev/stderr
+pip list
+err=$?
+echo -e "<- pip list returned $err\n" > /dev/stderr
+if [ $err -ne 0 ]; then exit $err; fi
+
+#############################################################################
+
+echo "-> python --version" > /dev/stderr
+which python
+python --version
+err=$?
+echo -e "<- python --version returned $err\n" > /dev/stderr
+if [ $err -ne 0 ]; then exit $err; fi
+
+echo "-> uvx ${UVX_ARGS} ${UV_COMMON_ARGS} python --version" > /dev/stderr
+uvx ${UVX_ARGS} ${UV_COMMON_ARGS} python --version
+err=$?
+echo -e "<- uvx python --version returned $err\n" > /dev/stderr
+if [ $err -ne 0 ]; then exit $err; fi
+
+echo "-> uv run ${UV_RUN_ARGS} ${UV_COMMON_ARGS} python --version" > /dev/stderr
+uv run ${UV_RUN_ARGS} ${UV_COMMON_ARGS} python --version < /dev/null
+err=$?
+echo -e "<- uv run python --version returned $err\n" > /dev/stderr
+if [ $err -ne 0 ]; then exit $err; fi
+
+#############################################################################
+
+SERVER_SPEC="${FASTMCP_FILE}"
+#SERVER_SPEC="${FASTMCP_FILE}:${JSON_FILE}"
+FASTMCP_ARGS="${FASTMCP_ARGS} --server-spec=${SERVER_SPEC}"
+echo "FASTMCP_ARGS=${FASTMCP_ARGS}"
+
+rm -f *mcp.out
+
+OUTPUT_ARGS="--format=mcp --output=mcp.out"
+echo "-> fastmcp inspect ${FASTMCP_ARGS} ${OUTPUT_ARGS} ${UV_COMMON_ARGS}" > /dev/null
+fastmcp inspect ${FASTMCP_ARGS} ${OUTPUT_ARGS} ${UV_COMMON_ARGS} < /dev/null
+err=$?
+ls -l mcp.out
+echo -e "<- fastmcp inspect returned $err\n" > /dev/stderr
+if [ $err -ne 0 ]; then exit $err; fi
+#echo "*** mcp.out"
+#cat mcp.out
+#echo
+
+OUTPUT_ARGS="--format=fastmcp --output=fastmcp.out"
+echo "-> fastmcp inspect ${FASTMCP_ARGS} ${OUTPUT_ARGS} ${UV_COMMON_ARGS}" > /dev/null
+fastmcp inspect ${FASTMCP_ARGS} ${OUTPUT_ARGS} ${UV_COMMON_ARGS} < /dev/null
+err=$?
+ls -l fastmcp.out
+echo -e "<- fastmcp inspect returned $err\n" > /dev/stderr
+if [ $err -ne 0 ]; then exit $err; fi
+#echo "*** fastmcp.out"
+#cat fastmcp.out
+#echo
+
+###################################################################
+
+if [ $DEV -eq 1 ]
+then
+  echo "Running in dev mode"
+elif [ "$1" == "stdio" ]
+then
+  RUN_ARGS="${RUN_ARGS} --transport=stdio"
+  shift
+else
+  RUN_ARGS="${RUN_ARGS} --transport=streamable-http"
+fi
+
+if [ $DEV -eq 1 ]
+then
+  # "fastmcp dev" requires root access
+
+
+  PATH="$PATH:`dirname $NODE`:`dirname $NPX`"
+  echo "-> sudo fastmcp ${RUN_ARGS} ${FASTMCP_ARGS} ${UV_COMMON_ARGS}" > /dev/stderr
+
+  export PATH="${NPX_DIR}:${NODE_DIR}:${PATH}"
+  echo -e "* Updated PATH:\n${PATH}\n"
+
+  fastmcp ${RUN_ARGS} ${FASTMCP_ARGS} ${UV_COMMON_ARGS}
+  err=$?
+  echo -e "<- sudo fastmcp ${RUN_ARGS} returned $err\n" > /dev/stderr
+else
+  fastmcp ${RUN_ARGS} ${FASTMCP_ARGS} ${UV_COMMON_ARGS}
+  err=$?
+  echo -e "<- fastmcp ${RUN_ARGS} returned $err\n" > /dev/stderr
+fi
+
+echo "*** Exit code $err" exit $err
