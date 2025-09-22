@@ -57,6 +57,44 @@ UV_COMMON_ARGS="${UV_COMMON_ARGS} --managed-python" # Require use of uv-managed 
 
 #############################################################################
 
+function check_nodejs_package {
+  NODEJS_ROOT="$1"
+
+  if [ -f "${NODEJS_ROOT}/package.json" ]
+  then
+    echo "* Found nodejs package found in \"${NODEJS_ROOT}"
+    pushd "$NODEJS_ROOT" > /dev/null
+    err=$?
+    if [ $err -ne 0 ]; then exit $err; fi
+
+    echo "-> npm install" > /dev/stderr
+    npm install
+    err=$?
+    echo
+    echo -e "<- npm install returned $err\n" > /dev/stderr
+    if [ $err -ne 0 ]; then exit $err; fi
+
+    echo "-> npm list"
+    npm list
+    err=$?
+    echo -e "<- npm list\n"
+    if [ $err -ne 0 ]; then exit $err; fi
+
+    popd > /dev/null
+    err=$?
+    if [ $err -ne 0 ]; then exit $err; fi
+  else
+    echo "* No nodejs package found in \"${NODEJS_ROOT}\""
+    return
+  fi
+}
+
+check_nodejs_package "${PROJECT_ROOT}"
+check_nodejs_package "${PROJECT_ROOT}/assets"
+check_nodejs_package "${PROJECT_ROOT}/assets/fastmcp"
+
+#############################################################################
+
 PIP_INSTALL_ARGS="--upgrade"
 REQUIREMENTS_FILE="${PROJECT_ROOT}/requirements.txt"
 if [ -f "${REQUIREMENTS_FILE}" ]
