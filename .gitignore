@@ -4,6 +4,10 @@
 .github
 .git
 
+# MCP inspection logs
+mcp.out
+fastmcp.out
+
 # python related
 *.nbdev
 /nbdev-template*
@@ -18,6 +22,7 @@ __pycache__
 /assets/fastmcp/docs
 /assets/fastmcp/src
 /assets/marimo*
+/assets/node_modules
 
 /target
 /bin
