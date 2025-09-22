@@ -134,7 +134,13 @@ if [ $err -ne 0 ]; then exit $err; fi
 echo "-> uv venv --clear --directory="${PROJECT_ROOT}" ${UV_COMMON_ARGS} ${COMMON_ARGS}"
 
 VENV_DIR="${PROJECT_ROOT}/.venv"
-VENV_FILE="${VENV_DIR}/bin/activate"
+
+if [ -d "${VENV_DIR}/bin" ]
+then
+  VENV_FILE="${VENV_DIR}/bin/activate"
+else
+  VENV_FILE="${VENV_DIR}/Scripts/activate"
+fi
 
 if [ -d "${VENV_DIR}" ]
 then
