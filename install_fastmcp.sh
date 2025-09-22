@@ -101,11 +101,11 @@ then
   find "${VENV_DIR}" -type f -printf "%p - %s\n" | sort > "${PROJECT_ROOT}/venv.before.txt"
   echo "* Before uv venv: `ls -l "${PROJECT_ROOT}/venv.before.txt"`"
 
-  # TODO: move .venv to .venv.old
-  #rm -rf "${VENV_DIR}.old" # replace any existing old folder
-  #echo "* mv \"${VENV_DIR}\"" \"${VENV_DIR}.old\"
-  #mv "${VENV_DIR}" "${VENV_DIR}.old"
-  #if [ $err -ne 0 ]; then exit $err; fi # this shouldn't fail
+  # move .venv to .venv.old
+  rm -rf "${VENV_DIR}.old" # replace any existing old folder
+  echo "* mv \"${VENV_DIR}\"" \"${VENV_DIR}.old\"
+  mv "${VENV_DIR}" "${VENV_DIR}.old"
+  if [ $err -ne 0 ]; then exit $err; fi # this shouldn't fail
 fi
 
 pushd "${PROJECT_ROOT}" > /dev/null
