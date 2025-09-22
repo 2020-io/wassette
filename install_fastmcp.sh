@@ -22,7 +22,7 @@ UV_SYNC_ARGS="--no-editable"
 
 if [[ "$1" == "dev" ]] || [[ "$1" == "devel" ]] || [[ "$1" == "develop" ]] || [[ "$1" == "development" ]]
 then 
-  echo "* In developer mode"
+  echo "* In development mode"
   UV_SYNC_ARGS="${UV_SYNC_ARGS} --dev"
   shift
 elif [[ "$1" == "rel" ]] || [[ "$1" == "release" ]]
@@ -60,10 +60,15 @@ UV_COMMON_ARGS="${UV_COMMON_ARGS} --managed-python" # Require use of uv-managed 
 PIP_INSTALL_ARGS="--upgrade"
 REQUIREMENTS_FILE="${PROJECT_ROOT}/requirements.txt"
 if [ -f "${REQUIREMENTS_FILE}" ]
-  #PIP_INSTALL_ARGS="${PIP_INSTALL_ARGS} --requirement=${REQUIREMENTS_FILE}"
-  PIP_INSTALL_ARGS="${PIP_INSTALL_ARGS} --requirement=${REQUIREMENTS_FILE}"
 then
+  UV_RUN_ARGS="--with-requirements=${REQUIREMENTS_FILE}"
+  UVX_ARGS="--with-requirements=${REQUIREMENTS_FILE}"
+  #PIP_INSTALL_ARGS="${PIP_INSTALL_ARGS} -r ${REQUIREMENTS_FILE}"
+  PIP_INSTALL_ARGS="${PIP_INSTALL_ARGS} -r ${REQUIREMENTS_FILE}"
+else
   echo -e "No requirements file \"${REQUIREMENTS_FILE}\"\n"
+  UV_RUN_ARGS=""
+  UVX_ARGS=""
 fi
 
 echo "--> pip install ${PIP_INSTALL_ARGS} ${COMMON_ARGS} uv_build" > /dev/stderr
@@ -217,8 +222,8 @@ err=$?
 echo -e "<- python --version returned $err\n" > /dev/stderr
 if [ $err -ne 0 ]; then exit $err; fi
 
-echo "-> uvx ${UV_COMMON_ARGS} ${COMMON_ARGS} python --version" > /dev/stderr
-uvx ${UV_COMMON_ARGS} ${COMMON_ARGS} python --version
+echo "-> uvx ${UVX_ARGS} ${UV_COMMON_ARGS} ${COMMON_ARGS} python --version" > /dev/stderr
+uvx ${UVX_ARGS} ${UV_COMMON_ARGS} ${COMMON_ARGS} python --version
 err=$?
 echo -e "<- uvx python returned $err\n" > /dev/stderr
 if [ $err -ne 0 ]; then exit $err; fi
@@ -229,8 +234,8 @@ err=$?
 echo -e "<- uv sync returned $err\n" > /dev/stderr
 if [ $err -ne 0 ]; then exit $err; fi
 
-echo "-> uv run ${UV_COMMON_ARGS} ${COMMON_ARGS} python --version" > /dev/stderr
-uv run ${UV_COMMON_ARGS} ${COMMON_ARGS} python --version < /dev/null
+echo "-> uv run ${UV_RUN_ARGS} ${UV_COMMON_ARGS} ${COMMON_ARGS} python --version" > /dev/stderr
+uv run ${UV_RUN_ARGS} ${UV_COMMON_ARGS} ${COMMON_ARGS} python --version < /dev/null
 err=$?
 echo -e "<- uv run python returned $err\n" > /dev/stderr
 if [ $err -ne 0 ]; then exit $err; fi
