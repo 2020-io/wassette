@@ -2,7 +2,7 @@
 
 DIR=`pwd`
 echo "Running in: ${DIR}"
-PROJECT_ROOT=`dirname $0`
+PROJECT_ROOT=../`dirname $0`
 pushd "${PROJECT_ROOT}" > /dev/null
 PROJECT_ROOT=`pwd`
 popd > /dev/null
@@ -85,12 +85,8 @@ echo "* node dir: ${NODE_DIR}"
 
 VENV_DIR="${PROJECT_ROOT}/.venv"
 
-if [ -d "${VENV_DIR}/bin" ]
-then
-  VENV_FILE="${VENV_DIR}/bin/activate"
-else
-  VENV_FILE="${VENV_DIR}/Scripts/activate"
-fi
+VENV_FILE="${VENV_DIR}/bin/activate"
+if [ ! -f "${VENV_FILE}" ]; then VENV_FILE="${VENV_DIR}/Scripts/activate"; fi
 
 if [ -f "${VENV_FILE}" ]
 then
@@ -98,6 +94,8 @@ then
   source "${VENV_FILE}"
   err=$?
   if [ $err -ne 0 ]; then exit $err; fi
+else
+	echo "No venv activate file found (skipping)" > /dev/stderr
 fi
 
 echo
