@@ -24,6 +24,8 @@ __pycache__
 /assets/marimo*
 /assets/node_modules
 
+/xmp/node_modules
+
 /target
 /bin
 /result
