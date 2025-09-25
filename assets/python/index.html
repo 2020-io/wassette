@@ -1,0 +1,102 @@
+<!doctype html>
+<html>
+  <head>
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.28.2/full/pyodide.js"></script>
+    <!--
+	<script src="https://cdn.jsdelivr.net/npm/polyscript" type="module"></script>
+	-->
+    </script>
+  </head>
+  <body>
+    <div id="msg">Loading...</div>
+
+    <!-- this is only loaded if polyscript is included -->
+    <script type="pyodide">
+      consolel.log("in pyodide");
+    </script>
+	
+    <script type="micropython">
+      # NOTE: while in python, javascript's main() is blocked (single-threaded javascript)
+      from js import document, window
+
+      import inspect
+      self = inspect.currentframe()
+      id = id(self)
+      print(f"micropython enter {id}: document={document} window={window}", self)
+
+      msg = document.querySelector("#msg")
+      msg.innerText = f"micropython enter {id}"
+
+      # this blocks javascript
+      #import time
+      #for i in range(3):
+      #  print(f"micropython: loop {i}")
+      #  time.sleep(1)
+
+      msg.innerText = f"micropython exit {id}"
+      print(f"micropython exit {id}")
+    </script>
+
+    <script type="text/javascript">
+      async function main() {
+        console.log("main enter", this);
+
+        //await sleepFor(1);
+        //let element = null;
+        //let element = document.body;
+        let element = document.getElementById('msg');
+        if (element)
+          element.textContent = "main enter"
+
+        const pyodide = await loadPyodide();
+        console.log("pyodide", pyodide);
+
+        const threading = pyodide.pyimport("threading");
+        //console.log("threading", threading); // pyodide Proxy()
+        const id = threading.get_ident();
+        console.log("current_thread.id", id);
+
+        // For internal pyodide packages like micropip, use loadPackage()
+        const micropip = await pyodide.loadPackage("micropip");
+        console.log("micropip", micropip);
+
+        await pyodide.runPythonAsync(`
+          import inspect
+          self = inspect.currentframe()
+          id = id(self)
+
+          print(f"-> runPythonAsync start {id}", self)
+          print("globals", globals())
+
+          import sys
+          #print("--> modules start", sorted(sys.modules.keys()))
+
+          import micropip
+          #print(micropip.list()) # shows only 'micropip'
+
+          g_var = 123
+          print("globals", globals())
+          def localfunc():
+            l_var = 123
+            #print("locals", locals()) # locals() will contain 'l_var' set to 1234 
+            #import time
+            #for i in range(3):
+            #   print(f"localfunc: loop {i}")
+            #   time.sleep(1)
+            #print("locals", locals()) # locals() will contain 'l_var' set to 1234 and 'i' set to 2 
+          # end of def localfunc()
+          localfunc()
+
+          #print("<-- modules end", sorted(sys.modules.keys()))
+          print(f"<- runPythonAsync exit {id}", self)
+        `);
+
+        if (element)
+          element.textContent = 'main exit';
+        console.log("main exit", this);
+      }
+
+      main();
+    </script>
+  </body>
+</html>
