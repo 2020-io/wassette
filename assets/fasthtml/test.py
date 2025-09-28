@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 # Meta-package with all key symbols from FastHTML and Starlette. Import it like this at the start of every FastHTML app.
 from fasthtml.common import *
 

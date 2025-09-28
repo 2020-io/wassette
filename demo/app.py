@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import streamlit as st
 
 from wasmagents.hello import hello

@@ -1,6 +1,6 @@
 [project]
 name = "wasmagents"
-version = "1.0.0"
+version = "0.1.0"
 description = "The fast, Pythonic way to build WASM AI agents."
 authors = [{ name = "WasmAgents" }]
 readme = "README.md"

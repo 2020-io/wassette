@@ -195,7 +195,7 @@ then
   RUN_ARGS="${RUN_ARGS} --transport=stdio"
   shift
 else
-  RUN_ARGS="${RUN_ARGS} --transport=streamable-http"
+  RUN_ARGS="${RUN_ARGS} --transport=streamable-http --port=8080"
 fi
 
 if [ $DEV -eq 1 ]

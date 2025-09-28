@@ -1,4 +1,7 @@
+#!/usr/bin/env ruby
+
 gem install ruby_wasm
+
 # Download a prebuilt Ruby release
 curl -LO https://github.com/ruby/ruby.wasm/releases/latest/download/ruby-3.4-wasm32-unknown-wasip1-full.tar.gz
 tar xfz ruby-3.4-wasm32-unknown-wasip1-full.tar.gz
@@ -7,11 +10,10 @@ tar xfz ruby-3.4-wasm32-unknown-wasip1-full.tar.gz
 mv ruby-3.4-wasm32-unknown-wasip1-full/usr/local/bin/ruby ruby.wasm
 
 # Put your app code
-mkdir src
-echo "puts 'Hello'" > src/my_app.rb
+echo "puts 'Hello'" > app.rb
 
 # Pack the whole directory under /usr and your app dir
-rbwasm pack ruby.wasm --dir ./src::/src --dir ./ruby-3.4-wasm32-unknown-wasip1-full/usr::/usr -o my-ruby-app.wasm
+rbwasm pack ruby.wasm --dir ./src::/src --dir ./ruby-3.4-wasm32-unknown-wasip1-full/usr::/usr -o ruby_wrapper.wasm
 
-# Run the packed scripts
-wasmtime my-ruby-app.wasm src/my_app.rb
+# Moved to run.sh
+#wasmtime ruby_wrapper.wasm app.rb
