@@ -2,7 +2,8 @@
 
 DIR=`pwd`
 echo "* Running in: ${DIR}"
-PROJECT_ROOT=../`dirname $0`
+PROJECT_ROOT=`dirname $0`/..
+echo "* Project root: ${PROJECT_ROOT}"
 pushd "${PROJECT_ROOT}" > /dev/null
 PROJECT_ROOT=`pwd`
 popd > /dev/null
@@ -135,14 +136,6 @@ if [ $err -ne 0 ]; then exit $err; fi
 echo "-> uv venv --clear --directory="${PROJECT_ROOT}" ${UV_COMMON_ARGS} ${COMMON_ARGS}"
 
 VENV_DIR="${PROJECT_ROOT}/.venv"
-
-if [ -d "${VENV_DIR}/bin" ]
-then
-  VENV_FILE="${VENV_DIR}/bin/activate"
-else
-  VENV_FILE="${VENV_DIR}/Scripts/activate"
-fi
-
 if [ -d "${VENV_DIR}" ]
 then
   echo "* Directory already exists: ${VENV_DIR}"
@@ -174,8 +167,6 @@ if [ $err -ne 0 ]; then exit $err; fi
 
 #########################################################################
 
-echo "Loading \"${VENV_FILE}\""  > /dev/stderr
-
 # Preserve the previous env.* records if they exist
 if [ -f "${VENV_DIR}/env.before.txt" ]
 then
@@ -194,6 +185,10 @@ echo "pip list returned $?" > /dev/stderr
 uv pip list ${UV_PIP_LIST_ARGS} ${COMMON_ARGS} >> "${VENV_DIR}/env.before.txt" < /dev/null
 echo "uv pip list ${UV_PIP_LIST_ARGS} returned $?" > /dev/stderr
 echo "-> before venv activate: `ls -l "${VENV_DIR}/env.before.txt"`"
+
+VENV_FILE="${VENV_DIR}/Scripts/activate"
+if [ ! -f "${VENV_FILE}" ]; then VENV_FILE="${VENV_DIR}/bin/activate"; fi
+echo "Loading \"${VENV_FILE}\""  > /dev/stderr
 
 source "${VENV_FILE}"
 err=$?

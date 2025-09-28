@@ -2,7 +2,8 @@
 
 DIR=`pwd`
 echo "Running in: ${DIR}"
-PROJECT_ROOT=../`dirname $0`
+PROJECT_ROOT=`dirname $0`/..
+echo "* Project root: ${PROJECT_ROOT}"
 pushd "${PROJECT_ROOT}" > /dev/null
 PROJECT_ROOT=`pwd`
 popd > /dev/null

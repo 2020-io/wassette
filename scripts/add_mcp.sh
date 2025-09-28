@@ -2,7 +2,8 @@
 
 DIR=`pwd`
 echo "* Running in: ${DIR}"
-PROJECT_ROOT=../`dirname $0`
+PROJECT_ROOT=`dirname $0`/..
+echo "* Project root: ${PROJECT_ROOT}"
 pushd "${PROJECT_ROOT}" > /dev/null
 PROJECT_ROOT=`pwd`
 popd > /dev/null
@@ -16,10 +17,10 @@ if [ ! -f "$REQUIREMENTS" ]
 then
 	echo "Missing requirements file \"$REQUIREMENTS\""
 	exit 1
-)
+fi
 if [ ! -f "$SERVER_SPEC" ]
 then
-	echo "Missing server spec file \"$SERVER_SPEC\"	
+	echo "Missing server spec file \"$SERVER_SPEC\""
 	exit 1
 fi
 
