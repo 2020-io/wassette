@@ -18,7 +18,7 @@ UV_PIP_LIST_ARGS="--strict"
 UV_PIP_INSTALL_ARGS="--strict --refresh"
 #UV_PIP_INSTALL_ARGS="${UV_PIP_INSTALL_ARGS} --no-build-isolation"
 
-UV_SYNC_ARGS="--no-editable"
+UV_SYNC_ARGS="--no-editable --upgrade"
 #UV_SYNC_ARGS="${UV_SYNC_ARGS} --no-build-isolation" # [env: UV_NO_BUILD_ISOLATION=1]
 
 if [[ "$1" == "dev" ]] || [[ "$1" == "devel" ]] || [[ "$1" == "develop" ]] || [[ "$1" == "development" ]]
@@ -145,10 +145,10 @@ then
   echo "* Before uv venv: `ls -l "${PROJECT_ROOT}/venv.before.txt"`"
 
   # move .venv to .venv.old
-  rm -rf "${VENV_DIR}.old" # replace any existing old folder
-  echo "* mv \"${VENV_DIR}\"" \"${VENV_DIR}.old\"
-  mv "${VENV_DIR}" "${VENV_DIR}.old"
-  if [ $err -ne 0 ]; then exit $err; fi # this shouldn't fail
+  #rm -rf "${VENV_DIR}.old" # replace any existing old folder
+  #echo "* mv \"${VENV_DIR}\"" \"${VENV_DIR}.old\"
+  #mv "${VENV_DIR}" "${VENV_DIR}.old"
+  #if [ $err -ne 0 ]; then exit $err; fi # this shouldn't fail
 fi
 
 pushd "${PROJECT_ROOT}" > /dev/null
