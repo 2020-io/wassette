@@ -58,8 +58,8 @@ cover/
 # Django stuff:
 *.log
 local_settings.py
-db.sqlite3
-db.sqlite3-journal
+*.sqlite3
+*.sqlite3-journal
 
 # Flask stuff:
 instance/
@@ -99,6 +99,10 @@ ipython_config.py
 #   This is especially recommended for binary packages to ensure reproducibility, and is more
 #   commonly ignored for libraries.
 #uv.lock
+
+# npm/pnpm
+#package-lock.json
+#pnpm.lock
 
 # poetry
 #   Similar to Pipfile.lock, it is generally recommended to include poetry.lock in version control.
@@ -195,7 +199,13 @@ _site/
 bin/
 logs/
 old/
-#*.pp.json
+/assets/usage/
+temp/
+tmp/
+TEMP/
+TMP/
+*.pp.json
+*.txt
 *.log
 *.old
 *.out
@@ -203,7 +213,9 @@ old/
 *.sorted
 /venv*.txt
 
+# Internal or auto-generated documentation
 /docs/book
-/nbdev*
+TODO*
+temp*
+nbdev*
 *.nbdev
-

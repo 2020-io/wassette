@@ -1,0 +1,58 @@
+.toolbar {
+    z-index: 2;
+    position: absolute;
+    top: 8px;
+    right: 1em;
+}
+
+.toolbar-select > select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    width: 100%;
+    padding: 0.4em 2.3em 0.4em 0.5em;
+    border: 1px solid #caced1;
+    border-radius: 0.25rem;
+    color: #000;
+    cursor: pointer;
+    background-color: #000;
+    font-size: 1rem;
+    color: #fff;
+}
+
+.toolbar-select {
+  position: relative;
+}
+
+.toolbar-select > .select-arrow {
+  content: "";
+  position: absolute;
+  top: 20%;
+  right: 1rem;
+  width: 8px;
+  height: 8px;
+  pointer-events: none;
+  border-right: 2px solid #fff;
+  border-bottom: 2px solid #fff;
+  transform: rotate(45deg);
+}
+
+div#terminal {
+    --color: #ffffff;
+    --size: 1.3;
+    --font: sfmono-regular,consolas,menlo,dejavu sans mono,monospace;
+    height: 100%;
+}
+
+html, body {
+    width: 100svw;
+    height: 100svh;
+    max-height: var(--visual-viewport-height);
+    margin: 0;
+    background-color: #000000;
+}
+
+.terminal img {
+    max-width: 100%;
+}
+

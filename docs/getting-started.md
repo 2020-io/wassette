@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Getting Started
 
 This Blueprint leverages [Pyodide](https://pyodide.org/) to run Python code directly in the browser, enabling you to use the full [OpenAI Agents Python SDK](https://openai.github.io/openai-agents-python/) without the need to install any developer
@@ -82,3 +83,14 @@ Run agents with local models via Ollama or LM Studio, ensuring higher privacy an
 
 - Check the [Troubleshooting](https://github.com/mozilla-ai/wasm-agents-blueprint/blob/main/README.md#troubleshooting) section in our repo
 - Need more help? Join our [Discord community](https://discord.gg/YuMNeuKStr) for support!
+=======
+Get started with this Blueprint using one of the options below:
+
+---
+
+### **Option 1:**
+
+
+
+###  **Option 2:**
+>>>>>>> main

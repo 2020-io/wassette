@@ -1,12 +1,11 @@
 {
   "$schema": "https://gofastmcp.com/public/schemas/fastmcp.json/v1.json",
-  "entrypoint": {
-    "file": "/mnt/c/SOURCE/WasmAgents/website/assets/fastmcp/wasmagents.py",
-    "object": "mcp"
+  "source": {
+    "path": "assets/fastmcp/wasmagents.py"
   },
   "environment": {
     "python": "3.13",
-    "dependencies": ["httpx"]
+    "dependencies": ["httpx","asyncio"]
   },
   "deployment": {
     "transport": "stdio"

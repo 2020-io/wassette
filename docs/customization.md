@@ -4,6 +4,7 @@ This Blueprint is designed to be flexible and easily adaptable to your specific 
 
 ---
 
+<<<<<<< HEAD
 
 ## 📝 **Learn how agents work**
 
@@ -40,3 +41,21 @@ and reliable... Then share those tools, so everyone else can benefit from them!
 ## 🤝 **Contributing to the Blueprint**
 
 Want to help improve or extend this Blueprint? Check out the **[Contributions Guide](https://github.com/mozilla-ai/wasm-agents-blueprint/blob/main/CONTRIBUTING.md)** to see how you can contribute your ideas, code, or feedback to make this Blueprint even better!
+=======
+## 🧠 **Changing the Model**
+
+
+
+## 📝 **Modifying the system Prompt**
+
+
+
+## 💡 Other Customization Ideas
+
+- other ideas..
+
+
+## 🤝 **Contributing to the Blueprint**
+
+Want to help improve or extend this Blueprint? Check out the **[Future Features & Contributions Guide](future-features-contributions.md)** to see how you can contribute your ideas, code, or feedback to make this Blueprint even better!
+>>>>>>> main

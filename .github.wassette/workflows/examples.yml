@@ -1,0 +1,129 @@
+name: Publish Examples
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - 'examples/**'
+  pull_request:
+    branches: [ "main" ]
+    paths:
+      - 'examples/**'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'The tag to use for the OCI artifacts.'
+        required: true
+        type: string
+        default: 'latest'
+
+env:
+  CARGO_TERM_COLOR: always
+  REGISTRY: ghcr.io
+  TINYGO_VERSION: 0.36.0
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+    - uses: extractions/setup-just@e33e0265a09d6d736e2ee1e0eb685ef1de4669ff # v3.0.0
+    - uses: astral-sh/setup-uv@4959332f0f014c5280e7eac8b70c90cb574c9f9b # v6.6.0
+    - uses: acifani/setup-tinygo@db56321a62b9a67922bb9ac8f9d085e218807bb3 # v0.2.1
+      with:
+        tinygo-version: ${{ env.TINYGO_VERSION }}
+    - uses: bytecodealliance/actions/wasm-tools/setup@3b93676295fd6f7eaa7af2c2785539e052fa8349 # v1.1.1
+    - run: ./scripts/install-protobuf.sh
+      shell: bash
+    - uses: actions-rust-lang/setup-rust-toolchain@ac90e63697ac2784f4ecfe2964e1a285c304003a # v1.14.1
+    - run: rustup target add wasm32-wasip2
+
+    - name: Build
+      run: just build-examples
+
+    - name: Upload wasm
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      with:
+        name: examples
+        path: bin
+
+  publish:
+    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request'
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    needs: build
+    strategy:
+      matrix:
+        component:
+          - name: gomodule-go
+            file: gomodule.wasm
+          - name: eval-py
+            file: eval-py.wasm
+          - name: time-server-js
+            file: time-server-js.wasm
+          - name: get-weather-js
+            file: get-weather-js.wasm
+          - name: filesystem-rs
+            file: filesystem.wasm
+          - name: fetch-rs
+            file: fetch-rs.wasm
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
+        with:
+          name: examples
+          path: bin
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@184bdaa0721073962dff0199f1fb9940f07167d1 # v3.5.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@d58896d6a1865668819e1d91763c7751a165e159 # v3.9.2
+        with:
+          cosign-release: 'v2.4.1'
+
+      - name: Determine tag
+        id: meta
+        run: |
+          if [[ $GITHUB_REF == refs/tags/* ]]; then
+            VERSION=${GITHUB_REF#refs/tags/}
+            echo "tag=$VERSION" >> $GITHUB_OUTPUT
+            echo "latest=true" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "tag=$GITHUB_SHA" >> $GITHUB_OUTPUT
+            echo "latest=true" >> $GITHUB_OUTPUT
+            echo "release_tag=${{ github.event.inputs.tag }}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=$GITHUB_SHA" >> $GITHUB_OUTPUT
+            echo "latest=false" >> $GITHUB_OUTPUT
+          fi
+      - name: Publish ${{ matrix.component.name }}
+        id: publish_versioned
+        uses: bytecodealliance/wkg-github-action@10b3b04b9059ba46208cd7daf7d352af14bded0f # v5
+        with:
+          file: bin/${{ matrix.component.file }}
+          oci-reference-without-tag: ghcr.io/${{ github.repository_owner }}/${{ matrix.component.name }}
+          version: ${{ steps.meta.outputs.tag }}
+      - name: Sign container image ${{ matrix.component.name }}:${{ steps.meta.outputs.tag }}
+        run: |
+          cosign sign --yes ghcr.io/${{ github.repository_owner }}/${{ matrix.component.name }}@${{ steps.publish_versioned.outputs.digest }}
+
+      - name: Publish ${{ matrix.component.name }} with tag ${{ steps.meta.outputs.release_tag || 'latest' }} (if specified)
+        id: publish_latest
+        uses: bytecodealliance/wkg-github-action@10b3b04b9059ba46208cd7daf7d352af14bded0f # v5
+        if: steps.meta.outputs.latest == 'true'
+        with:
+          file: bin/${{ matrix.component.file }}
+          oci-reference-without-tag: ghcr.io/${{ github.repository_owner }}/${{ matrix.component.name }}
+          version: ${{ steps.meta.outputs.release_tag || 'latest' }}
+      - name: Sign container image ${{ matrix.component.name }}:${{ steps.meta.outputs.release_tag || 'latest' }}
+        if: steps.meta.outputs.latest == 'true'
+        run: |
+          cosign sign --yes ghcr.io/${{ github.repository_owner }}/${{ matrix.component.name }}@${{ steps.publish_latest.outputs.digest }}
+

@@ -9,14 +9,14 @@ license = "Apache-2.0"
 requires-python = ">=3.13"
 #dynamic = ["version"]
 dependencies = [
-    "uv-build<0.8.20",
+    "uv-build>=0.8.22",
+    "fastmcp>=2.12.4",
+    "mcp>=1.15.0",
     "setuptools>=0.80.9",
-    "fastmcp>=2.12.2",
     "python-dotenv>=1.1.0",
     "exceptiongroup>=1.2.2",
     "httpx>=0.28.1",
     "asyncio>=4.0.0",
-    "mcp>=2.0.0",
     "openapi-pydantic>=0.5.1",
     "rich>=13.9.4",
     "cyclopts>=3.0.0",
@@ -42,6 +42,7 @@ keywords = [
     "agent",
     "ai agent",
 ]
+
 classifiers = [
     "Intended Audience :: Developers",
     "License :: OSI Approved :: Apache Software License",
@@ -80,9 +81,33 @@ dev = [
 wasmagents = "wasmagents.cli:app"
 
 [project.urls]
-Homepage = "https://gofastmcp.com"
-Repository = "https://github.com/jlowin/fastmcp"
-Documentation = "https://gofastmcp.com"
+Repository = "https://github.com/mozilla-ai/wasm-agents-blueprint"
+Documentation = "https://mozilla-ai.github.io/wasm-agents-blueprint/"
+Issues = "https://github.com/mozilla-ai/wasm-agents-blueprint/issues"
+
+[build-system]
+requires = ["uv_build"]
+build-backend = "uv_build"
+
+#[build-system]
+#requires = ["setuptools>=61", "wheel"]
+#build-backend = "setuptools.build_meta"
+[tool.setuptools]
+# Tell setuptools this is not a Python package, just a project with dependencies
+packages = []
+py-modules = []
+
+[tool.uv]
+no-build-isolation = false
+#[tool.uv_build.metadata]
+#allow-direct-references = true
+#[tool.uv_build.version]
+#source = "uv-dynamic-versioning"
+#[tool.uv-dynamic-versioning]
+#vcs = "git"
+#style = "pep440"
+#bump = true
+#fallback-version = "0.0.0"
 
 [project.optional-dependencies]
 docs = [
@@ -95,25 +120,6 @@ tests = [
   "pytest>=8,<9",
   "pytest-sugar>=0.9.6",
 ]
-
-[build-system]
-requires = ["uv_build"]
-build-backend = "uv_build"
-
-[tool.uv]
-no-build-isolation = false
-
-#[tool.uv_build.metadata]
-#allow-direct-references = true
-
-#[tool.uv_build.version]
-#source = "uv-dynamic-versioning"
-
-#[tool.uv-dynamic-versioning]
-#vcs = "git"
-#style = "pep440"
-#bump = true
-#fallback-version = "0.0.0"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

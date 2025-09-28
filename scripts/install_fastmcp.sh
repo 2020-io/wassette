@@ -2,7 +2,7 @@
 
 DIR=`pwd`
 echo "* Running in: ${DIR}"
-PROJECT_ROOT=`dirname $0`
+PROJECT_ROOT=../`dirname $0`
 pushd "${PROJECT_ROOT}" > /dev/null
 PROJECT_ROOT=`pwd`
 popd > /dev/null
@@ -23,7 +23,8 @@ UV_SYNC_ARGS="--no-editable"
 if [[ "$1" == "dev" ]] || [[ "$1" == "devel" ]] || [[ "$1" == "develop" ]] || [[ "$1" == "development" ]]
 then 
   echo "* In development mode"
-  UV_SYNC_ARGS="${UV_SYNC_ARGS} --dev"
+  UV_SYNC_ARGS="${UV_SYNC_ARGS} --all-packages"
+  #UV_SYNC_ARGS="${UV_SYNC_ARGS} --dev"
   shift
 elif [[ "$1" == "rel" ]] || [[ "$1" == "release" ]]
 then 
