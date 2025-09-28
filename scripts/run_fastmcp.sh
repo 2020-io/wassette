@@ -14,6 +14,7 @@ UV_COMMON_ARGS="--python=3.13"
 DEV=0
 UV_RUN_ARGS=""
 UVX_ARGS=""
+FASTMCP_ARGS=""
 if [ "$1" == "dev" ]
 then
   echo "* In development mode"
@@ -71,16 +72,15 @@ else
   exit 2
 fi
 
-REQUIREMENTS_FILE="${PROJECT_ROOT}/requirements.txt"
-if [ -f "${REQUIREMENTS_FILE}" ]
-then
-  UV_RUN_ARGS="--with-requirements=${REQUIREMENTS_FILE} ${UV_RUN_ARGS}"
-  UVX_ARGS="--with-requirements=${REQUIREMENTS_FILE} ${UVX_RUN_ARGS}"
-  FASTMCP_ARGS="--with-requirements=${REQUIREMENTS_FILE}"
-else
-  echo "No requirements file \"${REQUIREMENTS_FILE}\""
-  FASTMCP_ARGS=""
-fi
+#REQUIREMENTS_FILE="${PROJECT_ROOT}/requirements.txt"
+#if [ -f "${REQUIREMENTS_FILE}" ]
+#then
+#  UV_RUN_ARGS="--with-requirements=${REQUIREMENTS_FILE} ${UV_RUN_ARGS}"
+#  UVX_ARGS="--with-requirements=${REQUIREMENTS_FILE} ${UVX_RUN_ARGS}"
+#  FASTMCP_ARGS="--with-requirements=${REQUIREMENTS_FILE}"
+#else
+#  echo "No requirements file \"${REQUIREMENTS_FILE}\""
+#fi
 
 UV_RUN_ARGS="--no-cache --managed-python $UV_RUN_ARGS"
 UVX_ARGS="--no-cache --managed-python $UVX_ARGS"
@@ -195,7 +195,7 @@ then
   RUN_ARGS="${RUN_ARGS} --transport=stdio"
   shift
 else
-  RUN_ARGS="${RUN_ARGS} --transport=streamable-http --port=8080"
+  RUN_ARGS="${RUN_ARGS} --transport=streamable-http --port=8000"
 fi
 
 if [ $DEV -eq 1 ]

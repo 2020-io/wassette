@@ -37,4 +37,4 @@ app.post("/messages", async (req, res) => {
   await transport.handlePostMessage(req, res, req.body);
 });
 
-app.listen(3000, () => console.log("SSE server on http://localhost:3000"));
+app.listen(8080, () => console.log("SSE server on http://localhost:8080"));

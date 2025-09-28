@@ -137,6 +137,6 @@ app.delete("/mcp", async (req, res) => {
   res.json({ jsonrpc: "2.0", result: { success: true }, id: null });
 });
 
-app.listen(3000, () =>
-  console.log("Stateful MCP server with notifications at http://localhost:3000/mcp")
+app.listen(8080, () =>
+  console.log("Stateful MCP server with notifications at http://localhost:8080/mcp")
 );
