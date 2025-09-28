@@ -42,13 +42,33 @@ else
   #RUN_ARGS="$RUN_ARGS --skip-env"
 fi
 
-#JSON_FILE=fastmcp.json
+# Check for the fastmcp files in the current directory or <project_root>/assets/fastmcp
+# This path can be overriden by a program argument
 JSON_FILE=wasmagents.fastmcp.json
+if [ ! -f "$JSON_FILE" ]; then JSON_FILE="${PROJECT_ROOT}/assets/fastmcp/wasmagents.fastmcp.json"; fi
 FASTMCP_FILE=wasmagents.py
+if [ ! -f "$FASTMCP_FILE" ]; then FASTMCP_FILE="${PROJECT_ROOT}/assets/fastmcp/wasmagents.py"; fi
+
 if [ $# -gt 0 ]
 then
-  FASTMCP_FILE="$1"
+  JSON_FILE="$1"
   shift
+fi
+
+if [ -f "$FASTMCP_FILE" ]
+then
+  echo "FASTMCP_FILE=${FASTMCP_FILE}"
+else
+  echo "File \"${FASTMCP_FILE}\" does not exist"
+  exit 1
+fi
+
+if [ -f "$JSON_FILE" ]
+then
+  echo "JSON_FILE=${JSON_FILE}"
+else
+  echo "File \"${JSON_FILE}\" does not exist"
+  exit 2
 fi
 
 REQUIREMENTS_FILE="${PROJECT_ROOT}/requirements.txt"
@@ -85,18 +105,8 @@ echo "* node dir: ${NODE_DIR}"
 #############################################################################
 
 VENV_DIR="${PROJECT_ROOT}/.venv"
-
-<<<<<<< HEAD
-if [ -d "${VENV_DIR}/bin" ]
-then
-  VENV_FILE="${VENV_DIR}/bin/activate"
-else
-  VENV_FILE="${VENV_DIR}/Scripts/activate"
-fi
-=======
 VENV_FILE="${VENV_DIR}/bin/activate"
 if [ ! -f "${VENV_FILE}" ]; then VENV_FILE="${VENV_DIR}/Scripts/activate"; fi
->>>>>>> main
 
 if [ -f "${VENV_FILE}" ]
 then
@@ -104,11 +114,8 @@ then
   source "${VENV_FILE}"
   err=$?
   if [ $err -ne 0 ]; then exit $err; fi
-<<<<<<< HEAD
-=======
 else
 	echo "No venv activate file found (skipping)" > /dev/stderr
->>>>>>> main
 fi
 
 echo
