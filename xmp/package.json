@@ -1,0 +1,15 @@
+{
+  "name": "mcp-servers-demo",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "stdio": "node server_stdio.js",
+    "sse": "node server_sse.js",
+    "streamable": "node server_streamable.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.18.1",
+    "express": "^4.21.2",
+    "zod": "^3.23.8"
+  }
+}

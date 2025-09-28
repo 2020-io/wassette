@@ -186,10 +186,11 @@ cython_debug/
 .marimo
 
 .well-known/
-marimo/
+/assets/marimo
 /assets/artifacts
 /assets/fastmcp/docs
 /assets/fastmcp/src
+/assets/usage
 /assets/wassette
 
 # generated output
@@ -197,21 +198,24 @@ marimo/
 node_modules/
 _site/
 bin/
+log/
 logs/
+target/
+result/
+
 old/
-/assets/usage/
 temp/
 tmp/
 TEMP/
 TMP/
-*.pp.json
-*.txt
-*.log
+
+/venv*.txt
 *.old
 *.out
+*.txt
+*.log
 *.unsorted
 *.sorted
-/venv*.txt
 
 # Internal or auto-generated documentation
 /docs/book
