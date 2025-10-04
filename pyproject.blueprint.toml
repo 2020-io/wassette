@@ -1,13 +1,13 @@
 [build-system]
-requires = ["setuptools>=48", "setuptools_scm[toml]>=6.3.1"]
+requires = ["setuptools>=61", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "blueprint-template"
+name = "wasm-agents-blueprint"
+version = "0.1.0"
 readme = "README.md"
-license = {text = "Apache-2.0"}
-requires-python = ">=3.10"
-dynamic = ["version"]
+license = "Apache-2.0"
+description = "Running AI agents in a browser with Pyodide"
 dependencies = []
 
 [project.optional-dependencies]
@@ -17,19 +17,16 @@ docs = [
   "mkdocstrings-python",
 ]
 
-tests = [
-  "pytest>=8,<9",
-  "pytest-sugar>=0.9.6",
+dev = [
+  "ruff",
 ]
 
 [project.urls]
-Documentation = "https://mozilla-ai.github.io/blueprint-template/"
-Issues = "https://github.com/mozilla-ai/blueprint-template/issues"
-Source = "https://github.com/mozilla-ai/blueprint-template"
+Documentation = "https://mozilla-ai.github.io/wasm-agents-blueprint/"
+Issues = "https://github.com/mozilla-ai/wasm-agents-blueprint/issues"
+Source = "https://github.com/mozilla-ai/wasm-agents-blueprint"
 
-[tool.setuptools.packages.find]
-exclude = ["tests", "tests.*"]
-where = ["src"]
-namespaces = false
-
-[tool.setuptools_scm]
+[tool.setuptools]
+# Tell setuptools this is not a Python package, just a project with dependencies
+packages = []
+py-modules = []
