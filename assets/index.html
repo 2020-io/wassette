@@ -222,9 +222,61 @@
         const thread_id = threading.get_ident();
         console.log("thread_id", thread_id);
 
-        // For internal pyodide packages like micropip, use loadPackage()
-        const micropip = await pyodide.loadPackage("micropip");
-        console.log("micropip", micropip);
+/*
+        iframe_element = document.querySelector('iframe');
+        console.log("iframe_element", iframe_element);
+        if (iframe_element) {
+          iframe_window = iframe_element.contentWindow;
+          console.log("iframe_window", iframe_window);
+
+          await pyodide.runPythonAsync(`
+            from js import document, window
+
+            iframe_element = document.querySelector("iframe")
+            print("iframe_element inside runPython", iframe_element)
+
+            if iframe_element:
+              iframe_window = iframe_element.contentWindow;
+              print("iframe_window", iframe_window)
+
+              iframe_document = iframe_window.document
+              iframe_wasm = iframe_document.querySelector("#wasm");
+              if iframe_wasm:
+                print("iframe_wasm", iframe_wasm)
+                target = iframe_wasm
+                print(f"wasm innerText", target.innerText)
+                print(f"wasm innerHTML", target.innerHTML)
+
+                wasm = target.innerHTML;
+                print("wasm", wasm) # TODO: use it
+
+                if wasm and len(wasm) > 0:
+                  print("Removing old iframe", iframe_element)
+                  iframe_element.outerHTML = "" # overwrite the iframe
+                  iframe_element = None
+          `);
+          console.log("old iframe", iframe_element); // this should be deleted now
+          iframe_element = null;
+        } else {
+          await pyodide.runPython(`
+            import inspect
+            self = inspect.currentframe()
+            id = id(self)
+
+            print(f"-> runPython start {id}", self)
+            print("globals", globals())
+
+            import sys
+            #print("--> modules start", sorted(sys.modules.keys()))
+            import micropip
+            #print(micropip.list()) # shows only 'micropip'
+
+            print(micropip.list()) # shows only 'micropip'
+            #print("<-- modules end", sorted(sys.modules.keys()))
+            print(f"<- runPython exit {id}", self)
+          `);
+        }
+*/
 
         msg = "main exit " + url
         console.log(msg)
