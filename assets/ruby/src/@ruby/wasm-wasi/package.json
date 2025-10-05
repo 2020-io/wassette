@@ -1,44 +1,33 @@
 {
-  "name": "@ruby/3.4-wasm-wasi",
-  "version": "2.7.1-2025-09-23-a",
-  "description": "Ruby 3.4 built on WASI",
+  "name": "@ruby/wasm-wasi",
+  "version": "2.7.2",
+  "description": "WebAssembly port of CRuby with WASI",
   "main": "./dist/cjs/index.js",
   "module": "./dist/esm/index.js",
+  "browser": "./dist/index.umd.js",
+  "typings": "./dist/esm/index.d.ts",
   "exports": {
     ".": {
       "browser": "./dist/esm/index.js",
       "umd": "./dist/umd/index.js",
       "import": "./dist/esm/index.js",
-      "require": "./dist/cjs/index.js"
+      "require": "./dist/cjs/index.js",
+      "types": "./dist/esm/browser.d.ts"
     },
     "./dist/*": {
       "browser": "./dist/esm/*.js",
       "umd": "./dist/umd/*.js",
       "import": "./dist/esm/*.js",
-      "require": "./dist/cjs/*.js"
-    },
-    "./dist/*.wasm": {
-      "browser": "./dist/*.wasm",
-      "umd": "./dist/*.wasm",
-      "import": "./dist/*.wasm",
-      "require": "./dist/*.wasm"
+      "require": "./dist/cjs/*.js",
+      "types": "./dist/esm/*.d.ts"
     }
   },
   "files": [
     "dist",
     "README.md"
   ],
-  "scripts": {
-    "test": "RUBY_NPM_PACKAGE_ROOT=../ruby-3.4-wasm-wasi npm -C ../ruby-wasm-wasi run test:run",
-    "build:deps": "cd ../ruby-wasm-wasi && npm run build",
-    "build:static:files": "../ruby-wasm-wasi/tools/pack-static-files.sh ./dist",
-    "build:static:compat": "../ruby-wasm-wasi/tools/pack-compat-shim.mjs --dist=./dist --pkg=ruby-3.4-wasm-wasi",
-    "build:static": "npm run build:static:files && npm run build:static:compat",
-    "build:rollup": "rollup -c rollup.config.mjs",
-    "build": "npm run build:deps && npm run build:static && npm run build:rollup && ../ruby-wasm-wasi/tools/post-build.sh ./dist"
-  },
   "repository": "https://github.com/ruby/ruby.wasm",
-  "homepage": "https://github.com/ruby/ruby.wasm/tree/main/packages/npm-packages/ruby-3.4-wasm-wasi",
+  "homepage": "https://github.com/ruby/ruby.wasm/tree/main/packages/npm-packages/ruby-wasm-wasi",
   "publishConfig": {
     "access": "public"
   },
@@ -49,7 +38,30 @@
     "ruby"
   ],
   "license": "MIT",
+  "scripts": {
+    "test:run": "npm run test:unit && npm run test:vitest -- --run && npm run test:e2e",
+    "test:vitest": "vitest ./test/",
+    "test:unit": "./tools/run-test-unit.mjs",
+    "test:e2e": "playwright install && npm run test:e2e:examples && npm run test:e2e:integrations",
+    "test:e2e:examples": "playwright test -c test-e2e/playwright.examples.config.ts",
+    "test:e2e:integrations": "playwright test -c test-e2e/playwright.integrations.config.ts",
+    "serve:example": "BUNDLE_GEMFILE=../../../Gemfile bundle exec ruby -run -e httpd ./example -p 8085",
+    "format": "prettier --write .",
+    "build:static": "./tools/pack-bindgen-src.rb ./dist",
+    "build:rollup": "rollup -c rollup.config.mjs",
+    "build:tsc": "tsc -p tsconfig.esm.json && tsc -p tsconfig.cjs.json",
+    "build": "npm run build:rollup && npm run build:tsc && npm run build:static && ./tools/post-build.sh ./dist"
+  },
+  "devDependencies": {
+    "@bytecodealliance/jco": "1.8.1",
+    "@rollup/plugin-typescript": "^12.1.4",
+    "@types/node": "24.1.0",
+    "prettier": "^3.6.2",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  },
   "dependencies": {
-    "@ruby/wasm-wasi": "2.7.1-2025-09-23-a"
+    "@bjorn3/browser_wasi_shim": "^0.3.0",
+    "tslib": "^2.8.1"
   }
 }

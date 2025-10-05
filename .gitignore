@@ -191,8 +191,13 @@ cython_debug/
 /assets/marimo
 /assets/artifacts
 /assets/fastmcp/src
+/assets/pyscript/
+/assets/ruby/*-bin/
+/assets/ruby/*-src/
 /assets/usage
 /assets/wassette
+
+/assets/sql/*/
 
 # generated output
 log/
@@ -218,8 +223,10 @@ old/
 *.old
 *.bak
 *.out
-*.txt
 *.log
+#*.txt
+*.version
+*.help
 *.unsorted
 *.sorted
 

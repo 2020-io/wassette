@@ -1,6 +1,3 @@
-console.warn(`[33mDEPRECATED(ruby-3.4-wasm-wasi): "dist/index.umd" will be moved to "@ruby/wasm-wasi" in the next major release.
-Please replace your \`require('ruby-3.4-wasm-wasi/dist/index.umd');\` with \`require('@ruby/wasm-wasi/dist/index.umd');\`[0m`);
-
 (function (global, factory) {
     typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports) :
     typeof define === 'function' && define.amd ? define(['exports'], factory) :

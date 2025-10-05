@@ -1,4 +1,7 @@
-console.warn(`[33mDEPRECATED(ruby-3.4-wasm-wasi): "dist/index" will be moved to "@ruby/wasm-wasi" in the next major release.
-Please replace your \`require('ruby-3.4-wasm-wasi');\` with \`require('@ruby/wasm-wasi');\`[0m`);
-
-module.exports = require('@ruby/wasm-wasi');
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.consolePrinter = void 0;
+const tslib_1 = require("tslib");
+var console_js_1 = require("./console.js");
+Object.defineProperty(exports, "consolePrinter", { enumerable: true, get: function () { return console_js_1.consolePrinter; } });
+tslib_1.__exportStar(require("./vm.js"), exports);
