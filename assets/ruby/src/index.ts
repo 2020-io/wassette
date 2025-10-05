@@ -3,8 +3,8 @@ import { IRB } from "./irb-worker";
 import { makeJQueryTerminal } from "./terminals/jquery-terminal"
 import { makeXTermTerminal } from "./terminals/xterm";
 import { makeXtermPtyTerminal } from "./terminals/xterm-pty";
-import irb_3_4_wasm from "../@ruby/3.4-wasm-wasi@2.7.1/dist/ruby.debug+stdlib.wasm?url";
-import irb_head_wasm from "../@ruby/head-wasm-wasi/dist/ruby.debug+stdlib.wasm?url"
+import irb_3_4_wasm from "./@ruby/3.4-wasm-wasi@2.7.1/dist/ruby.debug+stdlib.wasm?url";
+import irb_head_wasm from "./@ruby/wasm-wasi/dist/ruby.debug+stdlib.wasm?url"
 
 function makeTerminal(rubyVersion: string) {
     const query = new URLSearchParams(window.location.search);
@@ -26,7 +26,7 @@ function makeTerminal(rubyVersion: string) {
 }
 
 const rubyVersions = { "3.4": irb_3_4_wasm, "head": irb_head_wasm };
-const defaultRubyVersion = "3.4";
+const defaultRubyVersion = "head";
 
 function deriveCurrentRubyVersion() {
     const query = new URLSearchParams(window.location.search);

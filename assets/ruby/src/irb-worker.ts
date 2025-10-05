@@ -1,4 +1,4 @@
-import { RubyVM, consolePrinter } from "@ruby/wasm-wasi"
+import { RubyVM, consolePrinter } from "./@ruby/wasm-wasi"
 import { Term } from "./terminals/terminal";
 import { Directory, File, OpenFile, PreopenDirectory, WASI, strace } from "@bjorn3/browser_wasi_shim";
 import { Fd, OpenSyncOPFSFile, SyncOPFSFile } from "@bjorn3/browser_wasi_shim/typings";
