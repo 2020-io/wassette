@@ -8,7 +8,7 @@ use anyhow::{bail, Context, Result};
 use futures::TryStreamExt;
 use tokio::fs::metadata;
 use tokio::io::AsyncWriteExt;
-use tracing::{debug, warn};
+use tracing::{debug, info, warn};
 
 /// Represents a downloaded resource, either from a local file or a temporary one.
 pub enum DownloadedResource {
@@ -86,25 +86,45 @@ impl DownloadedResource {
                 tokio::fs::copy(path, dest).await?;
             }
             DownloadedResource::Temp((tempdir, file)) => {
-                let dest = dest.as_ref().join(
+                let dest_dir = dest.as_ref();
+
+                // Also check for and copy any co-located policy file
+                let wasm_stem = file.file_stem().and_then(|s| s.to_str()).unwrap_or("");
+                let policy_path = tempdir.path().join(format!("{}.policy.yaml", wasm_stem));
+
+                if policy_path.exists() {
+                    let policy_dest = dest_dir.join(format!("{}.policy.yaml", wasm_stem));
+                    debug!(
+                        "Copying co-located policy file from {:?} to {:?}",
+                        policy_path, policy_dest
+                    );
+                    tokio::fs::copy(&policy_path, &policy_dest)
+                        .await
+                        .context("Failed to copy policy file")?;
+                }
+
+                // Copy the main file (WASM)
+                let dest_file = dest_dir.join(
                     file.file_name()
                         .context("Path to copy is missing filename")?,
                 );
-                match tokio::fs::rename(&file, &dest).await {
+
+                // Copy the main WASM file
+                match tokio::fs::rename(&file, &dest_file).await {
                     Ok(()) => {}
                     Err(e) if e.raw_os_error() == Some(18) => {
                         // 18 == EXDEV on Unix-like systems (cross-device link).
                         // Fallback to copy + remove.
                         debug!(
                             from = %file.display(),
-                            to = %dest.display(),
+                            to = %dest_file.display(),
                             "Cross-device rename detected; falling back to copy"
                         );
-                        tokio::fs::copy(&file, &dest).await.with_context(|| {
+                        tokio::fs::copy(&file, &dest_file).await.with_context(|| {
                             format!(
                                 "Failed to copy component from {} to {} during EXDEV fallback",
                                 file.display(),
-                                dest.display()
+                                dest_file.display()
                             )
                         })?;
                         if let Err(remove_err) = tokio::fs::remove_file(&file).await {
@@ -173,20 +193,81 @@ impl Loadable for ComponentResource {
     ) -> Result<DownloadedResource> {
         let reference: oci_client::Reference =
             reference.parse().context("Failed to parse OCI reference")?;
-        let data = oci_wasm::WasmClient::from(oci_client.clone())
-            .pull(&reference, &oci_client::secrets::RegistryAuth::Anonymous)
-            .await?;
-        let (downloaded_resource, mut file) = DownloadedResource::new_temp_file(
-            reference.repository().replace('/', "_"),
-            Self::FILE_EXTENSION,
-        )
-        .await?;
-        file.write_all(&data.layers[0].data).await?;
 
-        file.flush().await?;
-        file.sync_all().await?;
-        drop(file); // Ensure the file handle is closed
-        Ok(downloaded_resource)
+        // First try oci-wasm for backwards compatibility with single-layer artifacts
+        let wasm_client = oci_wasm::WasmClient::from(oci_client.clone());
+        let result = wasm_client
+            .pull(&reference, &oci_client::secrets::RegistryAuth::Anonymous)
+            .await;
+
+        match result {
+            Ok(data) => {
+                // Successfully pulled with oci-wasm - this is a single-layer WASM artifact
+                debug!("Successfully pulled single-layer WASM artifact");
+                let (downloaded_resource, mut file) = DownloadedResource::new_temp_file(
+                    reference.repository().replace('/', "_"),
+                    Self::FILE_EXTENSION,
+                )
+                .await?;
+
+                // Use the first layer (oci-wasm validated it's WASM)
+                file.write_all(&data.layers[0].data).await?;
+                file.flush().await?;
+                file.sync_all().await?;
+                drop(file);
+                Ok(downloaded_resource)
+            }
+            Err(e) => {
+                // Check if this is a multi-layer artifact issue
+                let error_str = e.to_string();
+                if error_str.contains("Incompatible layer media type") {
+                    // Multi-layer artifact detected - use our custom handler
+                    info!("Multi-layer OCI artifact detected, using direct OCI client");
+
+                    // Use our new multi-layer support to get ALL layers
+                    let artifact =
+                        crate::oci_multi_layer::pull_multi_layer_artifact(&reference, oci_client)
+                            .await
+                            .context("Failed to extract layers from multi-layer OCI artifact")?;
+
+                    // Save the WASM data
+                    let component_name = reference.repository().replace('/', "_");
+                    let (downloaded_resource, mut file) =
+                        DownloadedResource::new_temp_file(&component_name, Self::FILE_EXTENSION)
+                            .await?;
+
+                    file.write_all(&artifact.wasm_data).await?;
+                    file.flush().await?;
+                    file.sync_all().await?;
+                    drop(file);
+
+                    // If there's a policy, save it alongside the WASM in the temp directory
+                    if let Some(policy_data) = artifact.policy_data {
+                        info!("Saving policy layer alongside component");
+
+                        // Create policy file in the same temp directory as the WASM
+                        if let DownloadedResource::Temp((ref tempdir, ref _wasm_path)) =
+                            downloaded_resource
+                        {
+                            let policy_path = tempdir
+                                .path()
+                                .join(format!("{}.policy.yaml", component_name));
+                            tokio::fs::write(&policy_path, &policy_data)
+                                .await
+                                .context("Failed to save policy file")?;
+                            info!("Policy saved to: {:?}", policy_path);
+                        }
+                    }
+
+                    info!("Successfully extracted WASM component and policy from multi-layer artifact");
+
+                    Ok(downloaded_resource)
+                } else {
+                    // Some other error - propagate it
+                    Err(e)
+                }
+            }
+        }
     }
 
     async fn from_url(url: &str, http_client: &reqwest::Client) -> Result<DownloadedResource> {

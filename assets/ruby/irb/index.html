@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+
+<head>
+  <meta charset="utf-8" />
+  <title>irb.wasm</title>
+  <meta name="description" content="irb.wasm: IRB on browser powered by wasm" />
+  <meta property="og:image" content="./ruby.png" />
+  <meta
+    property="og:title"
+    content="irb.wasm: IRB on browser powered by wasm"
+  />
+  <meta
+    property="og:description"
+    content="You can try irb.wasm on your browser. It works on CRuby ported to WebAssembly."
+  />
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!--
+  <link
+    rel="icon"
+    href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💎</text></svg>"
+  />
+  -->
+  
+  <script type="module" crossorigin src="index.js"></script>
+  <link rel="stylesheet" crossorigin href="index.css">
+</head>
+<html>
+  <body>
+    <div class="toolbar">
+      <span class="toolbar-select">
+        <select id="ruby-version">
+        </select>
+        <span class="select-arrow"></span>
+      </span>
+    </div>
+    <div id="terminal"></div>
+    <!-- transpiled into index.js 
+	<script type="module" src="./src/index.ts"></script>
+	-->
+  </body>
+</html>

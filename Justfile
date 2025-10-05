@@ -1,4 +1,16 @@
+# Clean component target directories to avoid permission issues
+clean-test-components:
+    rm -rf examples/fetch-rs/target/
+    rm -rf examples/filesystem-rs/target/
+
+# Pre-build test components to avoid building during test execution
+build-test-components:
+    just clean-test-components
+    (cd examples/fetch-rs && cargo build --release --target wasm32-wasip2)
+    (cd examples/filesystem-rs && cargo build --release --target wasm32-wasip2)
+
 test:
+    just build-test-components
     cargo test --workspace -- --nocapture
     cargo test --doc --workspace -- --nocapture
 
@@ -54,4 +66,38 @@ docs-serve:
 
 docs-watch:
     cd docs && mdbook serve
+
+# CI Docker commands - automatically handle user mapping to prevent permission issues
+ci-local:
+    docker build \
+        --build-arg USER_ID=$(id -u) \
+        --build-arg GROUP_ID=$(id -g) \
+        -f Dockerfile.ci \
+        --target ci-test \
+        -t wassette-ci-local .
+    docker run --rm \
+        -v $(PWD):/workspace \
+        -w /workspace \
+        -e GITHUB_TOKEN \
+        wassette-ci-local just ci-build-test
+
+ci-build-test:
+    just build-test-components
+    cargo build --workspace
+    cargo test --workspace -- --nocapture
+    cargo test --doc --workspace -- --nocapture
+
+ci-build-test-ghcr:
+    just build-test-components
+    cargo build --workspace
+    cargo test --workspace -- --nocapture --include-ignored
+    cargo test --doc --workspace -- --nocapture
+
+ci-cache-info:
+    docker system df
+    docker images wassette-ci-*
+
+ci-clean:
+    docker rmi $(docker images -q wassette-ci-* 2>/dev/null) 2>/dev/null || true
+    docker builder prune -f
 

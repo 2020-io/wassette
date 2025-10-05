@@ -16,6 +16,7 @@ use component2json::{
     component_exports_to_json_schema, component_exports_to_tools, create_placeholder_results,
     json_to_vals, vals_to_json, FunctionIdentifier, ToolMetadata,
 };
+use etcetera::BaseStrategy;
 use policy::PolicyParser;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -29,13 +30,16 @@ use wasmtime_wasi_config::WasiConfig;
 
 mod http;
 mod loader;
+pub mod oci_multi_layer;
 mod policy_internal;
+mod secrets;
 mod wasistate;
 
 pub use http::WassetteWasiState;
 use loader::{ComponentResource, PolicyResource};
 use policy_internal::PolicyRegistry;
 pub use policy_internal::{PermissionGrantRequest, PermissionRule, PolicyInfo};
+pub use secrets::SecretsManager;
 use wasistate::WasiState;
 pub use wasistate::{
     create_wasi_state_template_from_policy, CustomResourceLimiter, WasiStateTemplate,
@@ -44,6 +48,22 @@ pub use wasistate::{
 const DOWNLOADS_DIR: &str = "downloads";
 const PRECOMPILED_EXT: &str = "cwasm";
 const METADATA_EXT: &str = "metadata.json";
+
+// Default timeout configurations
+const DEFAULT_OCI_TIMEOUT_SECS: u64 = 30;
+const DEFAULT_HTTP_TIMEOUT_SECS: u64 = 30;
+
+/// Get the default secrets directory path based on the OS
+fn get_default_secrets_dir() -> PathBuf {
+    let dir_strategy = etcetera::choose_base_strategy();
+    match dir_strategy {
+        Ok(strategy) => strategy.config_dir().join("wassette").join("secrets"),
+        Err(_) => {
+            eprintln!("WARN: Unable to determine default secrets directory, using `secrets` directory in the current working directory");
+            PathBuf::from("./secrets")
+        }
+    }
+}
 
 #[derive(Debug, Clone)]
 struct ToolInfo {
@@ -166,6 +186,7 @@ pub struct LifecycleManager {
     http_client: reqwest::Client,
     plugin_dir: PathBuf,
     environment_vars: HashMap<String, String>,
+    secrets_manager: Arc<SecretsManager>,
 }
 
 /// A representation of a loaded component instance. It contains both the base component info and a
@@ -181,11 +202,37 @@ impl LifecycleManager {
     /// This is the primary way to create a LifecycleManager for most use cases
     #[instrument(skip_all, fields(plugin_dir = %plugin_dir.as_ref().display()))]
     pub async fn new(plugin_dir: impl AsRef<Path>) -> Result<Self> {
-        Self::new_with_clients(
+        // Use default secrets directory for backward compatibility
+        let default_secrets_dir = get_default_secrets_dir();
+
+        // Create an OCI client with configurable timeout to prevent hanging
+        let oci_timeout = std::env::var("OCI_TIMEOUT_SECS")
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(DEFAULT_OCI_TIMEOUT_SECS);
+
+        let oci_client = oci_client::Client::new(oci_client::client::ClientConfig {
+            read_timeout: Some(std::time::Duration::from_secs(oci_timeout)),
+            ..Default::default()
+        });
+
+        // Create HTTP client with configurable timeout
+        let http_timeout = std::env::var("HTTP_TIMEOUT_SECS")
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(DEFAULT_HTTP_TIMEOUT_SECS);
+
+        let http_client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(http_timeout))
+            .build()
+            .context("Failed to create HTTP client")?;
+
+        Self::new_with_config(
             plugin_dir,
             HashMap::new(), // Empty environment variables for backward compatibility
-            oci_client::Client::default(),
-            reqwest::Client::default(),
+            default_secrets_dir,
+            oci_client,
+            http_client,
         )
         .await
     }
@@ -250,6 +297,37 @@ impl LifecycleManager {
         .await
     }
 
+    /// Creates an unloaded lifecycle manager from full configuration (including custom secrets dir)
+    #[instrument(skip_all)]
+    pub async fn new_unloaded_with_config(
+        plugin_dir: impl AsRef<Path>,
+        environment_vars: HashMap<String, String>,
+        secrets_dir: impl AsRef<Path>,
+        oci_client: oci_client::Client,
+        http_client: reqwest::Client,
+    ) -> Result<Self> {
+        let components_dir = plugin_dir.as_ref();
+
+        if !components_dir.exists() {
+            std::fs::create_dir_all(components_dir)?;
+        }
+
+        let mut config = wasmtime::Config::new();
+        config.wasm_component_model(true);
+        config.async_support(true);
+        let engine = Arc::new(wasmtime::Engine::new(&config)?);
+
+        Self::new_unloaded_with_policy_and_secrets(
+            engine,
+            components_dir,
+            environment_vars,
+            secrets_dir,
+            oci_client,
+            http_client,
+        )
+        .await
+    }
+
     /// Creates an unloaded lifecycle manager with custom clients and WASI state template
     #[instrument(skip_all)]
     async fn new_unloaded_with_policy(
@@ -275,6 +353,11 @@ impl LifecycleManager {
 
         let linker = Arc::new(linker);
 
+        // Initialize secrets manager with default directory for backward compatibility
+        let secrets_dir = get_default_secrets_dir();
+        let secrets_manager = Arc::new(SecretsManager::new(secrets_dir));
+        secrets_manager.ensure_secrets_dir().await?;
+
         // Make sure the plugin dir exists and also create a subdirectory for temporary staging of downloaded files
         tokio::fs::create_dir_all(&plugin_dir)
             .await
@@ -294,6 +377,58 @@ impl LifecycleManager {
             http_client,
             plugin_dir: plugin_dir.as_ref().to_path_buf(),
             environment_vars,
+            secrets_manager,
+        })
+    }
+
+    /// Creates an unloaded lifecycle manager with custom clients and custom secrets dir
+    #[instrument(skip_all)]
+    async fn new_unloaded_with_policy_and_secrets(
+        engine: Arc<Engine>,
+        plugin_dir: impl AsRef<Path>,
+        environment_vars: HashMap<String, String>,
+        secrets_dir: impl AsRef<Path>,
+        oci_client: oci_client::Client,
+        http_client: reqwest::Client,
+    ) -> Result<Self> {
+        info!("Creating new unloaded LifecycleManager (custom secrets dir)");
+
+        let registry = ComponentRegistry::new();
+        let components = HashMap::new();
+        let policy_registry = PolicyRegistry::default();
+
+        let mut linker = Linker::new(engine.as_ref());
+        wasmtime_wasi::p2::add_to_linker_async(&mut linker)?;
+        wasmtime_wasi_http::add_only_http_to_linker_async(&mut linker)?;
+        wasmtime_wasi_config::add_to_linker(
+            &mut linker,
+            |h: &mut WassetteWasiState<WasiState>| WasiConfig::from(&h.inner.wasi_config_vars),
+        )?;
+        let linker = Arc::new(linker);
+
+        tokio::fs::create_dir_all(&plugin_dir)
+            .await
+            .context("Failed to create plugin directory")?;
+        tokio::fs::create_dir_all(plugin_dir.as_ref().join(DOWNLOADS_DIR))
+            .await
+            .context("Failed to create downloads directory")?;
+
+        // Initialize secrets manager with provided directory
+        let secrets_manager = Arc::new(SecretsManager::new(secrets_dir.as_ref().to_path_buf()));
+        secrets_manager.ensure_secrets_dir().await?;
+
+        info!("Unloaded LifecycleManager (custom secrets dir) initialized successfully");
+        Ok(Self {
+            engine,
+            linker,
+            components: Arc::new(RwLock::new(components)),
+            registry: Arc::new(RwLock::new(registry)),
+            policy_registry: Arc::new(RwLock::new(policy_registry)),
+            oci_client: Arc::new(oci_wasm::WasmClient::new(oci_client)),
+            http_client,
+            plugin_dir: plugin_dir.as_ref().to_path_buf(),
+            environment_vars,
+            secrets_manager,
         })
     }
 
@@ -303,11 +438,56 @@ impl LifecycleManager {
         plugin_dir: impl AsRef<Path>,
         environment_vars: HashMap<String, String>,
     ) -> Result<Self> {
-        Self::new_with_clients(
+        // Use default secrets directory
+        let default_secrets_dir = get_default_secrets_dir();
+
+        // Create an OCI client with configurable timeout to prevent hanging
+        let oci_timeout = std::env::var("OCI_TIMEOUT_SECS")
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(DEFAULT_OCI_TIMEOUT_SECS);
+
+        let oci_client = oci_client::Client::new(oci_client::client::ClientConfig {
+            read_timeout: Some(std::time::Duration::from_secs(oci_timeout)),
+            ..Default::default()
+        });
+
+        // Create HTTP client with configurable timeout
+        let http_timeout = std::env::var("HTTP_TIMEOUT_SECS")
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(DEFAULT_HTTP_TIMEOUT_SECS);
+
+        let http_client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(http_timeout))
+            .build()
+            .context("Failed to create HTTP client")?;
+
+        Self::new_with_config(
             plugin_dir,
             environment_vars,
-            oci_client::Client::default(),
-            reqwest::Client::default(),
+            default_secrets_dir,
+            oci_client,
+            http_client,
+        )
+        .await
+    }
+
+    /// Creates a lifecycle manager from full configuration
+    #[instrument(skip_all, fields(plugin_dir = %plugin_dir.as_ref().display()))]
+    pub async fn new_with_config(
+        plugin_dir: impl AsRef<Path>,
+        environment_vars: HashMap<String, String>,
+        secrets_dir: impl AsRef<Path>,
+        oci_client: oci_client::Client,
+        http_client: reqwest::Client,
+    ) -> Result<Self> {
+        Self::new_with_policy(
+            plugin_dir,
+            environment_vars,
+            secrets_dir,
+            oci_client,
+            http_client,
         )
         .await
     }
@@ -317,6 +497,28 @@ impl LifecycleManager {
     pub async fn new_with_clients(
         plugin_dir: impl AsRef<Path>,
         environment_vars: HashMap<String, String>,
+        oci_client: oci_client::Client,
+        http_client: reqwest::Client,
+    ) -> Result<Self> {
+        // Use default secrets directory for backward compatibility
+        let default_secrets_dir = get_default_secrets_dir();
+
+        Self::new_with_policy(
+            plugin_dir,
+            environment_vars,
+            default_secrets_dir,
+            oci_client,
+            http_client,
+        )
+        .await
+    }
+
+    /// Creates a lifecycle manager with custom clients and WASI state template
+    #[instrument(skip_all)]
+    async fn new_with_policy(
+        plugin_dir: impl AsRef<Path>,
+        environment_vars: HashMap<String, String>,
+        secrets_dir: impl AsRef<Path>,
         oci_client: oci_client::Client,
         http_client: reqwest::Client,
     ) -> Result<Self> {
@@ -336,31 +538,15 @@ impl LifecycleManager {
         // }
         let engine = Arc::new(wasmtime::Engine::new(&config)?);
 
-        // Create the lifecycle manager
-        Self::new_with_policy(
-            engine,
-            components_dir,
-            environment_vars,
-            oci_client,
-            http_client,
-        )
-        .await
-    }
-
-    /// Creates a lifecycle manager with custom clients and WASI state template
-    #[instrument(skip_all)]
-    async fn new_with_policy(
-        engine: Arc<Engine>,
-        plugin_dir: impl AsRef<Path>,
-        environment_vars: HashMap<String, String>,
-        oci_client: oci_client::Client,
-        http_client: reqwest::Client,
-    ) -> Result<Self> {
         info!("Creating new LifecycleManager");
 
         let mut registry = ComponentRegistry::new();
         let mut components = HashMap::new();
         let mut policy_registry = PolicyRegistry::default();
+
+        // Create secrets manager
+        let secrets_manager = Arc::new(SecretsManager::new(secrets_dir.as_ref().to_path_buf()));
+        secrets_manager.ensure_secrets_dir().await?;
 
         let mut linker = Linker::new(engine.as_ref());
         wasmtime_wasi::p2::add_to_linker_async(&mut linker)?;
@@ -396,6 +582,7 @@ impl LifecycleManager {
                                 &policy,
                                 plugin_dir.as_ref(),
                                 &environment_vars,
+                                None, // No secrets during initial loading
                             ) {
                                 Ok(wasi_template) => {
                                     policy_registry
@@ -438,6 +625,7 @@ impl LifecycleManager {
             http_client,
             plugin_dir: plugin_dir.as_ref().to_path_buf(),
             environment_vars,
+            secrets_manager,
         })
     }
 
@@ -502,6 +690,48 @@ impl LifecycleManager {
             )
             .map(|_| LoadResult::Replaced)
             .unwrap_or(LoadResult::New);
+
+        // Check for co-located policy file and automatically attach it
+        // This matches the behavior at startup (see line 232)
+        let policy_path = self.plugin_dir.join(format!("{}.policy.yaml", &id));
+        if policy_path.exists() {
+            debug!(
+                "Found co-located policy file for component {}, attaching automatically",
+                id
+            );
+            match tokio::fs::read_to_string(&policy_path).await {
+                Ok(policy_content) => {
+                    match PolicyParser::parse_str(&policy_content) {
+                        Ok(policy) => {
+                            match wasistate::create_wasi_state_template_from_policy(
+                                &policy,
+                                &self.plugin_dir,
+                                &self.environment_vars,
+                                None, // No secrets during load_component
+                            ) {
+                                Ok(wasi_state) => {
+                                    self.policy_registry
+                                        .write()
+                                        .await
+                                        .component_policies
+                                        .insert(id.clone(), Arc::new(wasi_state));
+                                    info!("Automatically attached policy to component {}", id);
+                                }
+                                Err(e) => {
+                                    warn!("Failed to create WASI state from policy for component {}: {}", id, e);
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            warn!("Failed to parse policy file for component {}: {}", id, e);
+                        }
+                    }
+                }
+                Err(e) => {
+                    warn!("Failed to read policy file for component {}: {}", id, e);
+                }
+            }
+        }
 
         info!("Successfully loaded component");
         Ok((id, res))
@@ -609,6 +839,21 @@ impl LifecycleManager {
         self.registry.read().await.list_tools()
     }
 
+    /// Returns the schema for a specific tool owned by a component, if available
+    #[instrument(skip(self))]
+    pub async fn get_tool_schema_for_component(
+        &self,
+        component_id: &str,
+        tool_name: &str,
+    ) -> Option<Value> {
+        let registry = self.registry.read().await;
+        let tool_infos = registry.get_tool_info(tool_name)?;
+        tool_infos
+            .iter()
+            .find(|info| info.component_id == component_id)
+            .map(|info| info.schema.clone())
+    }
+
     /// Returns the requested component. Returns `None` if the component is not found.
     #[instrument(skip(self))]
     pub async fn get_component(&self, component_id: &str) -> Option<ComponentInstance> {
@@ -621,15 +866,67 @@ impl LifecycleManager {
         self.components.read().await.keys().cloned().collect()
     }
 
+    /// Lists all known components by ID (union of loaded components and any
+    /// `*.wasm` files present in the plugin directory). Does not compile components.
+    #[instrument(skip(self))]
+    pub async fn list_components_known(&self) -> Vec<String> {
+        use std::collections::HashSet;
+        let mut set: HashSet<String> = self.components.read().await.keys().cloned().collect();
+
+        if let Ok(entries) = std::fs::read_dir(&self.plugin_dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+
+                // 1) Detect regular .wasm files
+                let is_wasm = path
+                    .extension()
+                    .and_then(|ext| ext.to_str())
+                    .map(|ext| ext.eq_ignore_ascii_case("wasm"))
+                    .unwrap_or(false);
+                if is_wasm {
+                    if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
+                        set.insert(stem.to_string());
+                        continue;
+                    }
+                }
+
+                // 2) Detect metadata files ("<id>.metadata.json")
+                if let Some(fname) = path.file_name().and_then(|s| s.to_str()) {
+                    if fname.ends_with(&format!(".{METADATA_EXT}")) {
+                        if let Ok(content) = std::fs::read_to_string(&path) {
+                            if let Ok(meta) = serde_json::from_str::<ComponentMetadata>(&content) {
+                                set.insert(meta.component_id);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        let mut v: Vec<String> = set.into_iter().collect();
+        v.sort();
+        v
+    }
+
     /// Gets the schema for a specific component
     #[instrument(skip(self))]
     pub async fn get_component_schema(&self, component_id: &str) -> Option<Value> {
-        let component_instance = self.get_component(component_id).await?;
-        Some(component_exports_to_json_schema(
-            &component_instance.component,
-            self.engine.as_ref(),
-            true,
-        ))
+        // Prefer live component schema if loaded
+        if let Some(component_instance) = self.get_component(component_id).await {
+            return Some(component_exports_to_json_schema(
+                &component_instance.component,
+                self.engine.as_ref(),
+                true,
+            ));
+        }
+
+        // Fallback to metadata-based schema without compiling the component
+        match self.load_component_metadata(component_id).await {
+            Ok(Some(metadata)) => Some(serde_json::json!({
+                "tools": metadata.tool_schemas
+            })),
+            _ => None,
+        }
     }
 
     fn component_path(&self, component_id: &str) -> PathBuf {
@@ -646,6 +943,105 @@ impl LifecycleManager {
     fn component_precompiled_path(&self, component_id: &str) -> PathBuf {
         self.plugin_dir
             .join(format!("{component_id}.{PRECOMPILED_EXT}"))
+    }
+
+    /// Ensure a specific component is loaded (compiled and instantiated) by its ID.
+    /// If it's already loaded, this is a no-op. If the wasm file is not present in
+    /// the plugin directory, an error is returned.
+    #[instrument(skip(self))]
+    pub async fn ensure_component_loaded(&self, component_id: &str) -> Result<()> {
+        if self.components.read().await.contains_key(component_id) {
+            return Ok(());
+        }
+
+        let entry_path = self.component_path(component_id);
+        if !entry_path.exists() {
+            bail!("Component not found: {}", component_id);
+        }
+
+        // Compile or load from precompiled cache
+        let (component, _wasm_bytes) = self
+            .load_component_optimized(&entry_path, component_id)
+            .await?;
+
+        let instance_pre = self
+            .linker
+            .instantiate_pre(&component)
+            .context("failed to instantiate component")?;
+
+        let component_instance = ComponentInstance {
+            component: Arc::new(component),
+            instance_pre: Arc::new(instance_pre),
+        };
+
+        // Introspect tools
+        let tool_metadata =
+            component_exports_to_tools(&component_instance.component, &self.engine, true);
+
+        // Update registry
+        {
+            let mut registry_write = self.registry.write().await;
+            registry_write.unregister_component(component_id);
+            registry_write
+                .register_tools(component_id, tool_metadata.clone())
+                .context("unable to insert component into registry")?;
+        }
+
+        // Store in-memory
+        {
+            let mut components_write = self.components.write().await;
+            components_write.insert(component_id.to_string(), component_instance);
+        }
+
+        // Save/update metadata for future startups
+        if let Ok(validation_stamp) = Self::create_validation_stamp(&entry_path, false).await {
+            if let Err(e) = self
+                .save_component_metadata(component_id, &tool_metadata, validation_stamp)
+                .await
+            {
+                warn!(component_id = %component_id, error = %e, "Failed to save component metadata");
+            }
+        }
+
+        // Restore co-located policy if present
+        let policy_path = self.plugin_dir.join(format!("{component_id}.policy.yaml"));
+        if policy_path.exists() {
+            match tokio::fs::read_to_string(&policy_path).await {
+                Ok(policy_content) => match PolicyParser::parse_str(&policy_content) {
+                    Ok(policy) => {
+                        // Load secrets for this component (best effort)
+                        let secrets_opt = match self.load_component_secrets(component_id).await {
+                            Ok(map) if !map.is_empty() => Some(map),
+                            _ => None,
+                        };
+                        match wasistate::create_wasi_state_template_from_policy(
+                            &policy,
+                            &self.plugin_dir,
+                            &self.environment_vars,
+                            secrets_opt.as_ref(),
+                        ) {
+                            Ok(wasi_template) => {
+                                let mut policy_registry_write = self.policy_registry.write().await;
+                                policy_registry_write
+                                    .component_policies
+                                    .insert(component_id.to_string(), Arc::new(wasi_template));
+                            }
+                            Err(e) => {
+                                warn!(component_id = %component_id, error = %e, "Failed to create WASI template from policy")
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        warn!(component_id = %component_id, error = %e, "Failed to parse co-located policy file")
+                    }
+                },
+                Err(e) => {
+                    warn!(component_id = %component_id, error = %e, "Failed to read co-located policy file")
+                }
+            }
+        }
+
+        Ok(())
     }
 
     /// Create validation stamp for a file
@@ -1038,6 +1434,15 @@ impl LifecycleManager {
                 if Self::validate_stamp(&entry_path, &metadata.validation_stamp).await {
                     // Register tools from cached metadata
                     let mut registry_write = self.registry.write().await;
+
+                    // If the component is already registered (e.g. from an eager load), skip to
+                    // avoid duplicate tool registrations that would break lookups. This can
+                    // happen when the loaded constructors are combined with the background loader.
+                    if registry_write.component_map.contains_key(component_id) {
+                        debug!(component_id = %component_id, "Skipping cached metadata; component already registered");
+                        continue;
+                    }
+
                     let tool_metadata: Vec<ToolMetadata> = metadata
                         .function_identifiers
                         .into_iter()
@@ -1159,6 +1564,7 @@ impl LifecycleManager {
                             &policy,
                             &self.plugin_dir,
                             &self.environment_vars,
+                            None,
                         ) {
                             Ok(wasi_template) => {
                                 let mut policy_registry_write = self.policy_registry.write().await;
@@ -1268,6 +1674,54 @@ impl LifecycleManager {
             }
         }
         Ok(())
+    }
+
+    /// Get the secrets manager
+    pub fn secrets_manager(&self) -> &SecretsManager {
+        &self.secrets_manager
+    }
+
+    /// List secrets for a component
+    pub async fn list_component_secrets(
+        &self,
+        component_id: &str,
+        show_values: bool,
+    ) -> Result<std::collections::HashMap<String, Option<String>>> {
+        self.secrets_manager
+            .list_component_secrets(component_id, show_values)
+            .await
+    }
+
+    /// Set secrets for a component
+    pub async fn set_component_secrets(
+        &self,
+        component_id: &str,
+        secrets: &[(String, String)],
+    ) -> Result<()> {
+        self.secrets_manager
+            .set_component_secrets(component_id, secrets)
+            .await
+    }
+
+    /// Delete secrets for a component
+    pub async fn delete_component_secrets(
+        &self,
+        component_id: &str,
+        keys: &[String],
+    ) -> Result<()> {
+        self.secrets_manager
+            .delete_component_secrets(component_id, keys)
+            .await
+    }
+
+    /// Load secrets for a component as environment variables
+    pub async fn load_component_secrets(
+        &self,
+        component_id: &str,
+    ) -> Result<std::collections::HashMap<String, String>> {
+        self.secrets_manager
+            .load_component_secrets(component_id)
+            .await
     }
 }
 
@@ -1646,7 +2100,8 @@ permissions:
 
         let temp_dir = tempfile::tempdir()?;
         let env_vars = HashMap::new(); // Empty environment for test
-        let template = create_wasi_state_template_from_policy(&policy, temp_dir.path(), &env_vars)?;
+        let template =
+            create_wasi_state_template_from_policy(&policy, temp_dir.path(), &env_vars, None)?;
 
         assert_eq!(template.allowed_hosts.len(), 2);
         assert!(template.allowed_hosts.contains("api.example.com"));

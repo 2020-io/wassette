@@ -44,3 +44,6 @@ def wasmagent_template(text: str) -> str:
 def get_profile(user_id: int):
     return {"name": f"User {user_id}", "status": "active"}
 
+if __name__ == "__main__":
+    import asyncio
+    asyncio.run(mcp.run_async())

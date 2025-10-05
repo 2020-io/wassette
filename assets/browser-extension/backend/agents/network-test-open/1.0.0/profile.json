@@ -1,0 +1,35 @@
+{
+  "agentId": "network-test-open",
+  "name": "Network Test - Full Network Access",
+  "version": "1.0.0",
+  "description": "Tests network access with full networkAccess - both requests should succeed",
+  "runtime": "pyodide",
+  "author": "MCP Platform",
+  "category": "testing",
+  "permissions": {
+    "required": [
+      "console.log",
+      "network.fetch"
+    ],
+    "optional": []
+  },
+  "capabilities": {
+    "maxMemory": 104857600,
+    "networkAccess": true,
+    "executionTimeout": 30000,
+    "domAccess": "none"
+  },
+  "defaultCode": "# Network Access Control Test Script\n# Used by all network-test-* agents to validate ACL enforcement\n\nimport asyncio\n\nasync def test_network_access():\n    # Get agent metadata\n    agent_name = globals().get('agent_name', 'Unknown Agent')\n\n    print(f\"{agent_name} executing\")\n    print()\n\n    # Test URLs\n    test_urls = [\n        'https://www.google.com',\n        'https://www.yahoo.com'\n    ]\n\n    for url in test_urls:\n        print(f\"Testing access to {url}\")\n\n        try:\n            result = await restricted_api.fetch(url)\n\n            # Check if result indicates permission denial or error\n            if isinstance(result, str) and '[Permission denied' in result:\n                print(f\"Access: Failure\")\n                print(f\"Reason for failure: Permission denied\")\n            elif isinstance(result, str) and '[Fetch error' in result:\n                print(f\"Access: Failure\")\n                print(f\"Reason for failure: Network error\")\n            else:\n                print(f\"Access: Success\")\n\n        except Exception as e:\n            print(f\"Access: Failure\")\n            print(f\"Reason for failure: {type(e).__name__}: {str(e)}\")\n\n        print()\n\n# Run the test\nasyncio.ensure_future(test_network_access())\n",
+  "triggers": {
+    "urlPatterns": [
+      "<all_urls>"
+    ],
+    "events": [
+      "userAction"
+    ]
+  },
+  "hash": "d2a0a7e788cbb066a261ab37342be47ff8d61d3338cc282c9f560b180a74d541",
+  "signature": "rT1Zq2oVNHMam/nzgE065DWgHpJM5DFJ3s+ZaIfXXrEaSOdRG06Cd5S+u6Qul6DaielEp2zDB8RoQWBFqBNen8A3pMnyNsAcLdQ/kJiui6eJSVfSyFpbBLPJaQfBJm2HtlJ18Qzfzyt2kmpK1Pra0IZqR9BrHcrv1cBD9IjD1kpCvR5vTebgjO2wSZcLfXr+UkReN74Gcg/mObGvrGkKHWQ/8OEFyPJVv2zprrRTJbdVK9CsAbCL+srtfJ5HgwisIjpVx7zfxG0jwl/JYxmLyFsEkLpTOpsdH8M3CB/eJsbFdMeGr3h+8ZpayYI/DEzDFUTvLjLXBEI6OvekUWhPrQ==",
+  "publishedAt": "2025-10-02T00:00:00Z",
+  "expiresAt": null
+}

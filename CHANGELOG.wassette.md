@@ -6,6 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 
+- Updated Wasmtime dependencies from version 33 to 36 ([#265](https://github.com/microsoft/wassette/pull/265))
 - Updated documentation to clarify Wassette as a runtime rather than a platform, with improved wording for creating WebAssembly components that can be used as Tools for AI Agents with Wassette ([#TBD](https://github.com/microsoft/wassette/pull/TBD))
 - Disabled the security audit job from GitHub Actions workflow to reduce CI noise ([#TBD](https://github.com/microsoft/wassette/pull/TBD))
 
@@ -16,10 +17,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Fixed inconsistent spelling of "wasette" to "wassette" in configuration paths and documentation comments ([#TBD](https://github.com/microsoft/wassette/pull/TBD))
 - Fixed broken links in README.md pointing to documentation files in wrong directory paths ([#TBD](https://github.com/microsoft/wassette/pull/TBD))
 - Add cargo audit configuration to acknowledge unmaintained `paste` dependency warning ([#169](https://github.com/microsoft/wassette/pull/169))
+- Environment variables allowed by policy were only stored as config variables and not visible to std::env::var inside components; they are now injected into the WASI environment at instantiation ([#261](https://github.com/microsoft/wassette/pull/261))
+- Fixed security audit issue by adding RUSTSEC-2025-0057 to ignore list for unmaintained fxhash crate that is transitively required by wasmtime ([#TBD](https://github.com/microsoft/wassette/pull/TBD))
+
 
 ### Added
 
 - **Component Discovery**: Added `search-components` tool that lists all known components available for loading from the component registry, making it easier for users to discover and load new WebAssembly tools ([#236](https://github.com/microsoft/wassette/pull/236))
+- Simple per-component secret management system with CLI commands `wassette secret list|set|delete <component-id>` ([#199](https://github.com/microsoft/wassette/pull/199))
+  - Stores secrets in OS-appropriate directories with proper permissions (0700/user-only)
+  - YAML format with flat String->String mappings for easy editing and auditing
+  - Lazy loading with mtime-based cache invalidation for performance
+  - Integrates with environment variable precedence system (policy > secrets > inherited env)
+  - No server restart required, persists across runs
+  - Automatic component ID sanitization for safe filenames
 - GitHub Actions workflow to automatically build and deploy mdBook documentation to GitHub Pages ([#196](https://github.com/microsoft/wassette/pull/196))
 - Dependabot automerge workflow for automated dependency updates when CI passes ([#TBD](https://github.com/microsoft/wassette/pull/TBD))
 - Documentation for built-in tools in README, listing all 12 available tools with descriptions for better discoverability ([#TBD](https://github.com/microsoft/wassette/pull/TBD))

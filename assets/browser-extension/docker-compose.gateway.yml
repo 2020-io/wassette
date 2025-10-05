@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  # API Server
+  api:
+    build: ./backend/api
+    container_name: mcp-api
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - ./backend/api:/app
+      - ./extension/agents:/app/agents:ro
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+    command: npm start
+    restart: unless-stopped
+    networks:
+      - mcp-network
+
+  # Nginx (HTTPS proxy + static file server)
+  nginx:
+    image: nginx:alpine
+    container_name: mcp-nginx
+    ports:
+      - "8090:80"
+      - "8443:443"
+    volumes:
+      - ./backend/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./backend/nginx/gateway.conf:/etc/nginx/conf.d/default.conf:ro
+      - /etc/letsencrypt/live/dumpsterfire.blackhats.com:/etc/nginx/certs:ro
+      - /etc/letsencrypt/archive/dumpsterfire.blackhats.com:/etc/nginx/certs-archive:ro
+      - ./extension/agents:/var/www/agents:ro
+    depends_on:
+      api:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - mcp-network
+
+networks:
+  mcp-network:
+    driver: bridge

@@ -1,14 +1,115 @@
-[build-system]
-requires = ["setuptools>=61", "wheel"]
-build-backend = "setuptools.build_meta"
-
 [project]
 name = "wasmagents"
 version = "0.1.0"
+description = "The fast, Pythonic way to build WASM AI agents."
+authors = [{ name = "WasmAgents" }]
 readme = "README.md"
 license = "Apache-2.0"
-description = "Run WASM as agents"
-dependencies = []
+
+requires-python = ">=3.13"
+#dynamic = ["version"]
+dependencies = [
+    "uv-build>=0.8.22",
+    "fastmcp>=2.12.4",
+    "mcp>=1.15.0",
+    "setuptools>=0.80.9",
+    "python-fasthtml>=0.12.29",
+    "python-dotenv>=1.1.0",
+    "exceptiongroup>=1.2.2",
+    "httpx>=0.28.1",
+    "asyncio>=4.0.0",
+    "openapi-pydantic>=0.5.1",
+    "rich>=13.9.4",
+    "cyclopts>=3.0.0",
+    "authlib>=1.5.2",
+    "pydantic[email]>=2.11.7",
+    "pyperclip>=1.9.0",
+    "openapi-core>=0.19.5",
+    "openai>=1.95.1",
+]
+
+keywords = [
+    "wasm",
+    "wasm component",
+    "wasm ai agent",
+    "wasm ai client",
+    "wasm ai server",
+    "mcp",
+    "mcp server",
+    "mcp client",
+    "model context protocol",
+    "fastmcp",
+    "llm",
+    "agent",
+    "ai agent",
+]
+
+classifiers = [
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Typing :: Typed",
+]
+
+[dependency-groups]
+dev = [
+    "copychat>=0.5.2",
+    "dirty-equals>=0.9.0",
+    "fastapi>=0.115.12",
+    "inline-snapshot[dirty-equals]>=0.27.2",
+    "ipython>=8.12.3",
+    "pdbpp>=0.10.3",
+    "pre-commit",
+    "psutil",
+    "pyinstrument>=5.0.2",
+    "pyperclip>=1.9.0",
+    "ty>=0.0.1a19",
+    "pytest>=8.3.3",
+    "pytest-asyncio>=0.23.5",
+    "pytest-cov>=6.1.1",
+    "pytest-env>=1.1.5",
+    "pytest-flakefinder",
+    "pytest-httpx>=0.35.0",
+    "pytest-report>=0.2.1",
+    "pytest-timeout>=2.4.0",
+    "pytest-xdist>=3.6.1",
+    "ruff",
+]
+
+[project.scripts]
+wasmagents = "wasmagents.cli:app"
+
+[project.urls]
+Repository = "https://github.com/mozilla-ai/wasm-agents-blueprint"
+Documentation = "https://mozilla-ai.github.io/wasm-agents-blueprint/"
+Issues = "https://github.com/mozilla-ai/wasm-agents-blueprint/issues"
+
+[build-system]
+requires = ["uv_build"]
+build-backend = "uv_build"
+
+#[build-system]
+#requires = ["setuptools>=61", "wheel"]
+#build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+# Tell setuptools this is not a Python package, just a project with dependencies
+packages = []
+py-modules = []
+
+[tool.uv]
+no-build-isolation = false
+#[tool.uv_build.metadata]
+#allow-direct-references = true
+#[tool.uv_build.version]
+#source = "uv-dynamic-versioning"
+#[tool.uv-dynamic-versioning]
+#vcs = "git"
+#style = "pep440"
+#bump = true
+#fallback-version = "0.0.0"
 
 [project.optional-dependencies]
 docs = [
@@ -26,12 +127,52 @@ tests = [
   "pytest-sugar>=0.9.6",
 ]
 
-[project.urls]
-Documentation = "https://mozilla-ai.github.io/wasm-agents-blueprint/"
-Issues = "https://github.com/mozilla-ai/wasm-agents-blueprint/issues"
-Source = "https://github.com/mozilla-ai/wasm-agents-blueprint"
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
+# filterwarnings = ["error::DeprecationWarning"]
 
-[tool.setuptools]
-# Tell setuptools this is not a Python package, just a project with dependencies
-packages = []
-py-modules = []
+timeout = 3
+env = [
+    "WASMAGENTS_TEST_MODE=1",
+    'D:WASMAGENTS_LOG_LEVEL=DEBUG',
+    'D:WASMAGENTS_ENABLE_RICH_TRACEBACKS=0',
+
+]
+markers = [
+    "integration: marks tests as integration tests (deselect with '-m \"not integration\"')",
+    "client_process: marks tests that spawn client processes via stdio transport. These can create issues when run in the same CI environment as other subprocess-based tests.",
+]
+
+# Automatically mark all tests in integration_tests folder
+pythonpath = ["."]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+
+[tool.ty.src]
+include = ["src", "tests"]
+exclude = ["**/node_modules", "**/__pycache__", ".venv", ".git", "dist"]
+
+[tool.ty.environment]
+python-version = "3.13"
+
+[tool.ty.rules]
+# Rules with too many errors to fix right now (40+ each)
+no-matching-overload = "ignore"  # 126 errors  
+unknown-argument = "ignore"      # 61 errors
+unresolved-attribute = "ignore"  # 60 errors
+
+# Rules with moderate errors that need more investigation
+call-non-callable = "ignore" # 7 errors
+missing-argument = "ignore"  # 23 errors
+
+[tool.ruff.lint]
+extend-select = ["I", "UP"]
+
+#[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401", "I001", "RUF013"]
+# allow imports not at the top of the file
+#"src/wasmagents/__init__.py" = ["E402"]

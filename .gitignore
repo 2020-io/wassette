@@ -3,6 +3,9 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# Chromium exnteion
+keys/
+
 # C extensions
 *.so
 
@@ -10,7 +13,7 @@ __pycache__/
 .Python
 build/
 develop-eggs/
-dist/
+#dist/
 downloads/
 eggs/
 .eggs/
@@ -58,8 +61,8 @@ cover/
 # Django stuff:
 *.log
 local_settings.py
-db.sqlite3
-db.sqlite3-journal
+*.sqlite3
+*.sqlite3-journal
 
 # Flask stuff:
 instance/
@@ -100,6 +103,10 @@ ipython_config.py
 #   commonly ignored for libraries.
 #uv.lock
 
+# npm/pnpm
+#package-lock.json
+#pnpm.lock
+
 # poetry
 #   Similar to Pipfile.lock, it is generally recommended to include poetry.lock in version control.
 #   This is especially recommended for binary packages to ensure reproducibility, and is more
@@ -129,11 +136,10 @@ celerybeat.pid
 
 # Environments
 .env
-#.venv
+.venv
 env/
-venv/
-ENV/
-env.bak/
+/venv*
+/env*
 venv.bak/
 
 # Spyder project settings
@@ -182,25 +188,44 @@ cython_debug/
 .marimo
 
 .well-known/
-marimo/
+/assets/marimo
 /assets/artifacts
 /assets/fastmcp/src
+/assets/usage
 /assets/wassette
 
-/xmp/node_modules
+# generated output
+log/
+logs/
+target/
+.DS_Store
+node_modules/
+_site/
+log/
+logs/
+target/
+result/
+tmp/
+TEMP/
+TMP/
 
-/target
-/bin
-/result
-/logs
-/old
+/venv*.txt
+old/
+temp/
+tmp/
+*.crdownload
+*.tmp
 *.old
+*.bak
 *.out
+*.txt
+*.log
 *.unsorted
 *.sorted
-/venv*.txt
 
+# Internal or auto-generated documentation
 /docs/book
-/nbdev*
+TODO*
+temp*
+nbdev*
 *.nbdev
-

@@ -40,7 +40,7 @@ mod format;
 
 use commands::{
     Cli, Commands, ComponentCommands, GrantPermissionCommands, PermissionCommands, PolicyCommands,
-    RevokePermissionCommands, Serve,
+    RevokePermissionCommands, SecretCommands, Serve, Transport,
 };
 use format::{print_result, OutputFormat};
 
@@ -251,25 +251,39 @@ async fn handle_tool_cli_command(
 }
 
 /// Create LifecycleManager from plugin directory
+///
+/// For CLI responsiveness, we create an unloaded lifecycle manager which
+/// initializes engine/linker without compiling/scanning all components.
+/// Component metadata or lazy loads are used by individual handlers.
 async fn create_lifecycle_manager(plugin_dir: Option<PathBuf>) -> Result<LifecycleManager> {
     let config = if let Some(dir) = plugin_dir {
         config::Config {
             plugin_dir: dir,
+            secrets_dir: config::get_secrets_dir().unwrap_or_else(|_| {
+                eprintln!("WARN: Unable to determine default secrets directory, using `secrets` directory in the current working directory");
+                PathBuf::from("./secrets")
+            }),
             environment_vars: std::collections::HashMap::new(),
         }
     } else {
         config::Config::from_serve(&crate::Serve {
             plugin_dir: None,
-            stdio: false,
-            sse: false,
-            streamable_http: false,
+            transport: Default::default(),
             env_vars: vec![],
             env_file: None,
         })
         .context("Failed to load configuration")?
     };
 
-    LifecycleManager::new_with_env(&config.plugin_dir, config.environment_vars).await
+    // Use unloaded manager for fast CLI startup, but preserve custom secrets dir
+    LifecycleManager::new_unloaded_with_config(
+        &config.plugin_dir,
+        config.environment_vars,
+        &config.secrets_dir,
+        oci_client::Client::default(),
+        reqwest::Client::default(),
+    )
+    .await
 }
 
 impl McpServer {
@@ -454,52 +468,42 @@ async fn main() -> Result<()> {
     match &cli.command {
         Some(command) => match command {
             Commands::Serve(cfg) => {
-                // Initialize logging based on transport type
-                let (use_stdio_transport, use_streamable_http) = match (
-                    cfg.stdio,
-                    cfg.sse,
-                    cfg.streamable_http,
-                ) {
-                    (false, false, false) => (true, false), // Default case: use stdio transport
-                    (true, false, false) => (true, false),  // Stdio transport only
-                    (false, true, false) => (false, false), // SSE transport only
-                    (false, false, true) => (false, true),  // Streamable HTTP transport only
-                    _ => {
-                        return Err(anyhow::anyhow!(
-                        "Running multiple transports simultaneously is not supported. Please choose one of: --stdio, --sse, or --streamable-http."
-                    ));
-                    }
-                };
-
                 // Configure logging - use stderr for stdio transport to avoid interfering with MCP protocol
                 let env_filter = tracing_subscriber::EnvFilter::try_from_default_env()
                 .unwrap_or_else(|_| {
                     "info,cranelift_codegen=warn,cranelift_entity=warn,cranelift_bforest=warn,cranelift_frontend=warn"
-                        .to_string()
-                        .into()
+                    .to_string()
+                    .into()
                 });
 
                 let registry = tracing_subscriber::registry().with(env_filter);
 
-                if use_stdio_transport {
-                    registry
-                        .with(
-                            tracing_subscriber::fmt::layer()
-                                .with_writer(std::io::stderr)
-                                .with_ansi(false),
-                        )
-                        .init();
-                } else {
-                    registry.with(tracing_subscriber::fmt::layer()).init();
+                // Initialize logging based on transport type
+                let transport: Transport = (&cfg.transport).into();
+                match transport {
+                    Transport::Stdio => {
+                        registry
+                            .with(
+                                tracing_subscriber::fmt::layer()
+                                    .with_writer(std::io::stderr)
+                                    .with_ansi(false),
+                            )
+                            .init();
+                    }
+                    _ => registry.with(tracing_subscriber::fmt::layer()).init(),
                 }
 
                 let config =
                     config::Config::from_serve(cfg).context("Failed to load configuration")?;
 
-                // Create unloaded lifecycle manager for fast startup
-                let lifecycle_manager = LifecycleManager::new_unloaded_with_env(
+                // Build the lifecycle manager without eagerly loading components so the
+                // background loader is the single source of tool registration.
+                let lifecycle_manager = LifecycleManager::new_unloaded_with_config(
                     &config.plugin_dir,
                     config.environment_vars,
+                    &config.secrets_dir,
+                    oci_client::Client::default(),
+                    reqwest::Client::default(),
                 )
                 .await?;
 
@@ -529,47 +533,54 @@ async fn main() -> Result<()> {
                     }
                 });
 
-                if use_stdio_transport {
-                    tracing::info!("Starting MCP server with stdio transport. Components will load in the background.");
-                    let transport = stdio_transport();
-                    let running_service = serve_server(server, transport).await?;
+                match transport {
+                    Transport::Stdio => {
+                        tracing::info!("Starting MCP server with stdio transport. Components will load in the background.");
+                        let transport = stdio_transport();
+                        let running_service = serve_server(server, transport).await?;
 
-                    tokio::signal::ctrl_c().await?;
-                    let _ = running_service.cancel().await;
-                } else if use_streamable_http {
-                    tracing::info!(
+                        tokio::signal::ctrl_c().await?;
+                        let _ = running_service.cancel().await;
+                    }
+                    Transport::StreamableHttp => {
+                        tracing::info!(
                         "Starting MCP server on {} with streamable HTTP transport. Components will load in the background.",
                         BIND_ADDRESS
                     );
-                    let service = StreamableHttpService::new(
-                        move || Ok(server.clone()),
-                        LocalSessionManager::default().into(),
-                        Default::default(),
-                    );
+                        let service = StreamableHttpService::new(
+                            move || Ok(server.clone()),
+                            LocalSessionManager::default().into(),
+                            Default::default(),
+                        );
 
-                    let router = axum::Router::new().nest_service("/mcp", service);
-                    let tcp_listener = tokio::net::TcpListener::bind(BIND_ADDRESS).await?;
-                    let _ = axum::serve(tcp_listener, router)
-                        .with_graceful_shutdown(async { tokio::signal::ctrl_c().await.unwrap() })
-                        .await;
-                } else {
-                    tracing::info!(
+                        let router = axum::Router::new().nest_service("/mcp", service);
+                        let tcp_listener = tokio::net::TcpListener::bind(BIND_ADDRESS).await?;
+                        let _ = axum::serve(tcp_listener, router)
+                            .with_graceful_shutdown(async {
+                                tokio::signal::ctrl_c().await.unwrap()
+                            })
+                            .await;
+                    }
+                    Transport::Sse => {
+                        tracing::info!(
                         "Starting MCP server on {} with SSE HTTP transport. Components will load in the background.",
                         BIND_ADDRESS
                     );
-                    let ct = SseServer::serve(BIND_ADDRESS.parse().unwrap())
-                        .await?
-                        .with_service(move || server.clone());
+                        let ct = SseServer::serve(BIND_ADDRESS.parse().unwrap())
+                            .await?
+                            .with_service(move || server.clone());
 
-                    tokio::signal::ctrl_c().await?;
-                    ct.cancel();
+                        tokio::signal::ctrl_c().await?;
+                        ct.cancel();
+                    }
                 }
 
                 tracing::info!("MCP server shutting down");
             }
             Commands::Component { command } => match command {
                 ComponentCommands::Load { path, plugin_dir } => {
-                    let lifecycle_manager = create_lifecycle_manager(plugin_dir.clone()).await?;
+                    let plugin_dir = plugin_dir.clone().or_else(|| cli.plugin_dir.clone());
+                    let lifecycle_manager = create_lifecycle_manager(plugin_dir).await?;
                     let mut args = Map::new();
                     args.insert("path".to_string(), json!(path));
                     handle_tool_cli_command(
@@ -581,7 +592,8 @@ async fn main() -> Result<()> {
                     .await?;
                 }
                 ComponentCommands::Unload { id, plugin_dir } => {
-                    let lifecycle_manager = create_lifecycle_manager(plugin_dir.clone()).await?;
+                    let plugin_dir = plugin_dir.clone().or_else(|| cli.plugin_dir.clone());
+                    let lifecycle_manager = create_lifecycle_manager(plugin_dir).await?;
                     let mut args = Map::new();
                     args.insert("id".to_string(), json!(id));
                     handle_tool_cli_command(
@@ -596,7 +608,8 @@ async fn main() -> Result<()> {
                     plugin_dir,
                     output_format,
                 } => {
-                    let lifecycle_manager = create_lifecycle_manager(plugin_dir.clone()).await?;
+                    let plugin_dir = plugin_dir.clone().or_else(|| cli.plugin_dir.clone());
+                    let lifecycle_manager = create_lifecycle_manager(plugin_dir).await?;
                     let args = Map::new();
                     handle_tool_cli_command(
                         &lifecycle_manager,
@@ -613,7 +626,8 @@ async fn main() -> Result<()> {
                     plugin_dir,
                     output_format,
                 } => {
-                    let lifecycle_manager = create_lifecycle_manager(plugin_dir.clone()).await?;
+                    let plugin_dir = plugin_dir.clone().or_else(|| cli.plugin_dir.clone());
+                    let lifecycle_manager = create_lifecycle_manager(plugin_dir).await?;
                     let mut args = Map::new();
                     args.insert("component_id".to_string(), json!(component_id));
                     handle_tool_cli_command(&lifecycle_manager, "get-policy", args, *output_format)
@@ -628,8 +642,8 @@ async fn main() -> Result<()> {
                         access,
                         plugin_dir,
                     } => {
-                        let lifecycle_manager =
-                            create_lifecycle_manager(plugin_dir.clone()).await?;
+                        let plugin_dir = plugin_dir.clone().or_else(|| cli.plugin_dir.clone());
+                        let lifecycle_manager = create_lifecycle_manager(plugin_dir).await?;
                         let mut args = Map::new();
                         args.insert("component_id".to_string(), json!(component_id));
                         args.insert(
@@ -652,8 +666,8 @@ async fn main() -> Result<()> {
                         host,
                         plugin_dir,
                     } => {
-                        let lifecycle_manager =
-                            create_lifecycle_manager(plugin_dir.clone()).await?;
+                        let plugin_dir = plugin_dir.clone().or_else(|| cli.plugin_dir.clone());
+                        let lifecycle_manager = create_lifecycle_manager(plugin_dir).await?;
                         let mut args = Map::new();
                         args.insert("component_id".to_string(), json!(component_id));
                         args.insert(
@@ -675,8 +689,8 @@ async fn main() -> Result<()> {
                         key,
                         plugin_dir,
                     } => {
-                        let lifecycle_manager =
-                            create_lifecycle_manager(plugin_dir.clone()).await?;
+                        let plugin_dir = plugin_dir.clone().or_else(|| cli.plugin_dir.clone());
+                        let lifecycle_manager = create_lifecycle_manager(plugin_dir).await?;
                         let mut args = Map::new();
                         args.insert("component_id".to_string(), json!(component_id));
                         args.insert(
@@ -698,8 +712,8 @@ async fn main() -> Result<()> {
                         limit,
                         plugin_dir,
                     } => {
-                        let lifecycle_manager =
-                            create_lifecycle_manager(plugin_dir.clone()).await?;
+                        let plugin_dir = plugin_dir.clone().or_else(|| cli.plugin_dir.clone());
+                        let lifecycle_manager = create_lifecycle_manager(plugin_dir).await?;
                         let mut args = Map::new();
                         args.insert("component_id".to_string(), json!(component_id));
                         args.insert(
@@ -727,8 +741,8 @@ async fn main() -> Result<()> {
                         uri,
                         plugin_dir,
                     } => {
-                        let lifecycle_manager =
-                            create_lifecycle_manager(plugin_dir.clone()).await?;
+                        let plugin_dir = plugin_dir.clone().or_else(|| cli.plugin_dir.clone());
+                        let lifecycle_manager = create_lifecycle_manager(plugin_dir).await?;
                         let mut args = Map::new();
                         args.insert("component_id".to_string(), json!(component_id));
                         args.insert(
@@ -750,8 +764,8 @@ async fn main() -> Result<()> {
                         host,
                         plugin_dir,
                     } => {
-                        let lifecycle_manager =
-                            create_lifecycle_manager(plugin_dir.clone()).await?;
+                        let plugin_dir = plugin_dir.clone().or_else(|| cli.plugin_dir.clone());
+                        let lifecycle_manager = create_lifecycle_manager(plugin_dir).await?;
                         let mut args = Map::new();
                         args.insert("component_id".to_string(), json!(component_id));
                         args.insert(
@@ -773,8 +787,8 @@ async fn main() -> Result<()> {
                         key,
                         plugin_dir,
                     } => {
-                        let lifecycle_manager =
-                            create_lifecycle_manager(plugin_dir.clone()).await?;
+                        let plugin_dir = plugin_dir.clone().or_else(|| cli.plugin_dir.clone());
+                        let lifecycle_manager = create_lifecycle_manager(plugin_dir).await?;
                         let mut args = Map::new();
                         args.insert("component_id".to_string(), json!(component_id));
                         args.insert(
@@ -796,7 +810,8 @@ async fn main() -> Result<()> {
                     component_id,
                     plugin_dir,
                 } => {
-                    let lifecycle_manager = create_lifecycle_manager(plugin_dir.clone()).await?;
+                    let plugin_dir = plugin_dir.clone().or_else(|| cli.plugin_dir.clone());
+                    let lifecycle_manager = create_lifecycle_manager(plugin_dir).await?;
                     let mut args = Map::new();
                     args.insert("component_id".to_string(), json!(component_id));
                     handle_tool_cli_command(
@@ -806,6 +821,118 @@ async fn main() -> Result<()> {
                         OutputFormat::Json,
                     )
                     .await?;
+                }
+            },
+            Commands::Secret { command } => match command {
+                SecretCommands::List {
+                    component_id,
+                    show_values,
+                    yes,
+                    plugin_dir,
+                    output_format,
+                } => {
+                    let lifecycle_manager = create_lifecycle_manager(plugin_dir.clone()).await?;
+
+                    // Prompt for confirmation if showing values
+                    if *show_values && !*yes {
+                        print!("Show secret values? [y/N]: ");
+                        std::io::Write::flush(&mut std::io::stdout())?;
+                        let mut input = String::new();
+                        std::io::stdin().read_line(&mut input)?;
+                        if !input.trim().eq_ignore_ascii_case("y") {
+                            println!("Cancelled.");
+                            return Ok(());
+                        }
+                    }
+
+                    let secrets = lifecycle_manager
+                        .list_component_secrets(component_id, *show_values)
+                        .await?;
+
+                    let result = if *show_values {
+                        secrets
+                            .into_iter()
+                            .map(|(k, v)| {
+                                json!({
+                                    "key": k,
+                                    "value": v.unwrap_or_else(|| "<not found>".to_string())
+                                })
+                            })
+                            .collect::<Vec<_>>()
+                    } else {
+                        secrets
+                            .into_keys()
+                            .map(|k| json!({"key": k}))
+                            .collect::<Vec<_>>()
+                    };
+
+                    print_result(
+                        &rmcp::model::CallToolResult {
+                            content: Some(vec![rmcp::model::Content::text(
+                                serde_json::to_string_pretty(&json!({
+                                    "component_id": component_id,
+                                    "secrets": result
+                                }))?,
+                            )]),
+                            structured_content: None,
+                            is_error: None,
+                        },
+                        *output_format,
+                    )?;
+                }
+                SecretCommands::Set {
+                    component_id,
+                    secrets,
+                    plugin_dir,
+                } => {
+                    let lifecycle_manager = create_lifecycle_manager(plugin_dir.clone()).await?;
+                    lifecycle_manager
+                        .set_component_secrets(component_id, secrets)
+                        .await?;
+
+                    let result = json!({
+                        "status": "success",
+                        "component_id": component_id,
+                        "message": format!("Set {} secret(s) for component", secrets.len())
+                    });
+
+                    print_result(
+                        &rmcp::model::CallToolResult {
+                            content: Some(vec![rmcp::model::Content::text(
+                                serde_json::to_string_pretty(&result)?,
+                            )]),
+                            structured_content: None,
+                            is_error: None,
+                        },
+                        OutputFormat::Json,
+                    )?;
+                }
+                SecretCommands::Delete {
+                    component_id,
+                    keys,
+                    plugin_dir,
+                } => {
+                    let lifecycle_manager = create_lifecycle_manager(plugin_dir.clone()).await?;
+                    lifecycle_manager
+                        .delete_component_secrets(component_id, keys)
+                        .await?;
+
+                    let result = json!({
+                        "status": "success",
+                        "component_id": component_id,
+                        "message": format!("Deleted {} secret(s) from component", keys.len())
+                    });
+
+                    print_result(
+                        &rmcp::model::CallToolResult {
+                            content: Some(vec![rmcp::model::Content::text(
+                                serde_json::to_string_pretty(&result)?,
+                            )]),
+                            structured_content: None,
+                            is_error: None,
+                        },
+                        OutputFormat::Json,
+                    )?;
                 }
             },
         },

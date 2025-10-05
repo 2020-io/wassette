@@ -55,3 +55,15 @@ Wassette uses semantic versioning. All releases follow the format `vX.Y.Z`, wher
    ```
 
 1. **Trigger the release workflow**: Once the tag is pushed, the `release.yml` workflow will be triggered automatically. You can monitor the progress of the workflow in the "Actions" tab of the GitHub repository. After the workflow completes successfully, the compiled binaries for each platform will be available for download in the "[Releases](https://github.com/microsoft/wassette/releases)" section of the GitHub repository.
+
+1. **Update package manifests**: After all release assets are published, refresh the downstream package managers so they point at the new version.
+
+   - **WinGet**:
+     1. Open the GitHub release for the new tag and use the asset menu to copy the download URL and SHA-256 value for each Windows zip (`wassette_<version>_windows_amd64.zip` and `wassette_<version>_windows_arm64.zip`).
+     1. Edit `winget/Microsoft.Wassette.yaml` and update `PackageVersion`, `ReleaseDate`, `InstallerUrl`, and `InstallerSha256` for each architecture using the copied values.
+     1. Submit the manifest changes in a pull request.
+
+   - **Homebrew**:
+     1. From the same GitHub release, copy the SHA-256 values for each tarball referenced in `Formula/wassette.rb` (`wassette_<version>_darwin_amd64.tar.gz`, `wassette_<version>_linux_amd64.tar.gz`, etc.).
+     1. Update the `version` field and the `sha256` values in `Formula/wassette.rb` to match the new release assets.
+     1. Open a pull request with the Formula update.

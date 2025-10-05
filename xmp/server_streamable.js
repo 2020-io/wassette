@@ -47,5 +47,6 @@ app.post("/mcp", async (req, res) => {
 // GET/DELETE are not used in stateless mode
 app.get("/mcp", (req, res) => res.status(405).json({ jsonrpc: "2.0", error: { code: -32000, message: "Method not allowed." }, id: null }));
 app.delete("/mcp", (req, res) => res.status(405).json({ jsonrpc: "2.0", error: { code: -32000, message: "Method not allowed." }, id: null }));
+# TODO add /xmp routes
 
-app.listen(3000, () => console.log("Streamable HTTP (stateless) on http://localhost:3000/mcp"));
+app.listen(8080, () => console.log("Streamable HTTP (stateless) on http://localhost:8080/mcp"));

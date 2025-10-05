@@ -2,7 +2,8 @@
 
 DIR=`pwd`
 echo "Running in: ${DIR}"
-PROJECT_ROOT=../`dirname $0`
+PROJECT_ROOT=`dirname $0`/..
+echo "* Project root: ${PROJECT_ROOT}"
 pushd "${PROJECT_ROOT}" > /dev/null
 PROJECT_ROOT=`pwd`
 popd > /dev/null
@@ -13,6 +14,7 @@ UV_COMMON_ARGS="--python=3.13"
 DEV=0
 UV_RUN_ARGS=""
 UVX_ARGS=""
+FASTMCP_ARGS=""
 if [ "$1" == "dev" ]
 then
   echo "* In development mode"
@@ -41,25 +43,44 @@ else
   #RUN_ARGS="$RUN_ARGS --skip-env"
 fi
 
-#JSON_FILE=fastmcp.json
+# Check for the fastmcp files in the current directory or <project_root>/assets/fastmcp
+# This path can be overriden by a program argument
 JSON_FILE=wasmagents.fastmcp.json
+if [ ! -f "$JSON_FILE" ]; then JSON_FILE="${PROJECT_ROOT}/assets/fastmcp/wasmagents.fastmcp.json"; fi
 FASTMCP_FILE=wasmagents.py
+if [ ! -f "$FASTMCP_FILE" ]; then FASTMCP_FILE="${PROJECT_ROOT}/assets/fastmcp/wasmagents.py"; fi
+
 if [ $# -gt 0 ]
 then
-  FASTMCP_FILE="$1"
+  JSON_FILE="$1"
   shift
 fi
 
-REQUIREMENTS_FILE="${PROJECT_ROOT}/requirements.txt"
-if [ -f "${REQUIREMENTS_FILE}" ]
+if [ -f "$FASTMCP_FILE" ]
 then
-  UV_RUN_ARGS="--with-requirements=${REQUIREMENTS_FILE} ${UV_RUN_ARGS}"
-  UVX_ARGS="--with-requirements=${REQUIREMENTS_FILE} ${UVX_RUN_ARGS}"
-  FASTMCP_ARGS="--with-requirements=${REQUIREMENTS_FILE}"
+  echo "FASTMCP_FILE=${FASTMCP_FILE}"
 else
-  echo "No requirements file \"${REQUIREMENTS_FILE}\""
-  FASTMCP_ARGS=""
+  echo "File \"${FASTMCP_FILE}\" does not exist"
+  exit 1
 fi
+
+if [ -f "$JSON_FILE" ]
+then
+  echo "JSON_FILE=${JSON_FILE}"
+else
+  echo "File \"${JSON_FILE}\" does not exist"
+  exit 2
+fi
+
+#REQUIREMENTS_FILE="${PROJECT_ROOT}/requirements.txt"
+#if [ -f "${REQUIREMENTS_FILE}" ]
+#then
+#  UV_RUN_ARGS="--with-requirements=${REQUIREMENTS_FILE} ${UV_RUN_ARGS}"
+#  UVX_ARGS="--with-requirements=${REQUIREMENTS_FILE} ${UVX_RUN_ARGS}"
+#  FASTMCP_ARGS="--with-requirements=${REQUIREMENTS_FILE}"
+#else
+#  echo "No requirements file \"${REQUIREMENTS_FILE}\""
+#fi
 
 UV_RUN_ARGS="--no-cache --managed-python $UV_RUN_ARGS"
 UVX_ARGS="--no-cache --managed-python $UVX_ARGS"
@@ -84,7 +105,6 @@ echo "* node dir: ${NODE_DIR}"
 #############################################################################
 
 VENV_DIR="${PROJECT_ROOT}/.venv"
-
 VENV_FILE="${VENV_DIR}/bin/activate"
 if [ ! -f "${VENV_FILE}" ]; then VENV_FILE="${VENV_DIR}/Scripts/activate"; fi
 
@@ -175,7 +195,7 @@ then
   RUN_ARGS="${RUN_ARGS} --transport=stdio"
   shift
 else
-  RUN_ARGS="${RUN_ARGS} --transport=streamable-http"
+  RUN_ARGS="${RUN_ARGS} --transport=streamable-http --port=8000"
 fi
 
 if [ $DEV -eq 1 ]

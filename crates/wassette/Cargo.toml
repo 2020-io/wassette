@@ -7,7 +7,9 @@ license.workspace = true
 [dependencies]
 anyhow = { workspace = true }
 component2json = { path = "../component2json" }
+etcetera = { workspace = true }
 futures = { workspace = true }
+hex = "0.4"
 http = "1.0"
 num_cpus = "1.0"
 hyper = { version = "1.7", features = ["client"] }
@@ -30,7 +32,7 @@ wasmtime-wasi-http = { workspace = true }
 wasmtime-wasi-config = { workspace = true }
 
 [dev-dependencies]
-proptest = "1.4"
+proptest = "1.8"
 temp-env = "0.3"
 test-log = { workspace = true, features = ["trace"] }
 tokio-test = { workspace = true }

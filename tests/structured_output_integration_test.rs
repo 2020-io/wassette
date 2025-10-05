@@ -245,26 +245,21 @@ async fn test_structured_output_integration() -> Result<()> {
         let result = &fetch_response["result"];
 
         // With rmcp v0.5.0, we should have structured_content field for structured responses
-        if result["structured_content"].is_object() {
-            println!("✓ Tool call response includes structured_content field (rmcp v0.5.0 native support)");
-            println!(
-                "structured_content: {}",
-                serde_json::to_string_pretty(&result["structured_content"]).unwrap()
-            );
-        } else if result["content"].is_array() {
-            println!("✓ Tool call response includes content field");
-            // Even if structured_content isn't used, content should be present
-        } else {
-            println!(
-                "Tool response structure: {}",
-                serde_json::to_string_pretty(result).unwrap()
-            );
-        }
+        let structured = result
+            .get("structured_content")
+            .or_else(|| result.get("structuredContent"));
 
-        // Verify basic response structure
         assert!(
-            result["content"].is_array() || result["structured_content"].is_object(),
-            "Tool response should have either content or structured_content field"
+            structured.is_some(),
+            "Tool response is missing structured_content despite output schema: {}",
+            serde_json::to_string_pretty(result).unwrap()
+        );
+
+        let structured = structured.unwrap();
+        assert!(
+            structured.is_object(),
+            "structured_content should carry the structured result object: {}",
+            serde_json::to_string_pretty(structured).unwrap()
         );
 
         println!("✓ Tool call completed with proper response structure");

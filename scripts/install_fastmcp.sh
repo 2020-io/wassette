@@ -2,7 +2,8 @@
 
 DIR=`pwd`
 echo "* Running in: ${DIR}"
-PROJECT_ROOT=../`dirname $0`
+PROJECT_ROOT=`dirname $0`/..
+echo "* Project root: ${PROJECT_ROOT}"
 pushd "${PROJECT_ROOT}" > /dev/null
 PROJECT_ROOT=`pwd`
 popd > /dev/null
@@ -17,13 +18,14 @@ UV_PIP_LIST_ARGS="--strict"
 UV_PIP_INSTALL_ARGS="--strict --refresh"
 #UV_PIP_INSTALL_ARGS="${UV_PIP_INSTALL_ARGS} --no-build-isolation"
 
-UV_SYNC_ARGS="--no-editable"
+UV_SYNC_ARGS="--no-editable --upgrade"
 #UV_SYNC_ARGS="${UV_SYNC_ARGS} --no-build-isolation" # [env: UV_NO_BUILD_ISOLATION=1]
 
 if [[ "$1" == "dev" ]] || [[ "$1" == "devel" ]] || [[ "$1" == "develop" ]] || [[ "$1" == "development" ]]
 then 
   echo "* In development mode"
-  UV_SYNC_ARGS="${UV_SYNC_ARGS} --dev"
+  UV_SYNC_ARGS="${UV_SYNC_ARGS} --all-packages"
+  #UV_SYNC_ARGS="${UV_SYNC_ARGS} --dev"
   shift
 elif [[ "$1" == "rel" ]] || [[ "$1" == "release" ]]
 then 
@@ -134,14 +136,6 @@ if [ $err -ne 0 ]; then exit $err; fi
 echo "-> uv venv --clear --directory="${PROJECT_ROOT}" ${UV_COMMON_ARGS} ${COMMON_ARGS}"
 
 VENV_DIR="${PROJECT_ROOT}/.venv"
-
-if [ -d "${VENV_DIR}/bin" ]
-then
-  VENV_FILE="${VENV_DIR}/bin/activate"
-else
-  VENV_FILE="${VENV_DIR}/Scripts/activate"
-fi
-
 if [ -d "${VENV_DIR}" ]
 then
   echo "* Directory already exists: ${VENV_DIR}"
@@ -151,10 +145,10 @@ then
   echo "* Before uv venv: `ls -l "${PROJECT_ROOT}/venv.before.txt"`"
 
   # move .venv to .venv.old
-  rm -rf "${VENV_DIR}.old" # replace any existing old folder
-  echo "* mv \"${VENV_DIR}\"" \"${VENV_DIR}.old\"
-  mv "${VENV_DIR}" "${VENV_DIR}.old"
-  if [ $err -ne 0 ]; then exit $err; fi # this shouldn't fail
+  #rm -rf "${VENV_DIR}.old" # replace any existing old folder
+  #echo "* mv \"${VENV_DIR}\"" \"${VENV_DIR}.old\"
+  #mv "${VENV_DIR}" "${VENV_DIR}.old"
+  #if [ $err -ne 0 ]; then exit $err; fi # this shouldn't fail
 fi
 
 pushd "${PROJECT_ROOT}" > /dev/null
@@ -172,8 +166,6 @@ echo -e "<- uv venv returned $err\n" > /dev/stderr
 if [ $err -ne 0 ]; then exit $err; fi
 
 #########################################################################
-
-echo "Loading \"${VENV_FILE}\""  > /dev/stderr
 
 # Preserve the previous env.* records if they exist
 if [ -f "${VENV_DIR}/env.before.txt" ]
@@ -193,6 +185,10 @@ echo "pip list returned $?" > /dev/stderr
 uv pip list ${UV_PIP_LIST_ARGS} ${COMMON_ARGS} >> "${VENV_DIR}/env.before.txt" < /dev/null
 echo "uv pip list ${UV_PIP_LIST_ARGS} returned $?" > /dev/stderr
 echo "-> before venv activate: `ls -l "${VENV_DIR}/env.before.txt"`"
+
+VENV_FILE="${VENV_DIR}/Scripts/activate"
+if [ ! -f "${VENV_FILE}" ]; then VENV_FILE="${VENV_DIR}/bin/activate"; fi
+echo "Loading \"${VENV_FILE}\""  > /dev/stderr
 
 source "${VENV_FILE}"
 err=$?

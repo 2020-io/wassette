@@ -463,14 +463,11 @@ pub async fn handle_get_policy(
 
     info!("Getting policy for component {}", component_id);
 
-    // First check if the component exists
-    let component_exists = lifecycle_manager
-        .get_component(component_id)
+    // Ensure the component is available (compile lazily if needed)
+    lifecycle_manager
+        .ensure_component_loaded(component_id)
         .await
-        .is_some();
-    if !component_exists {
-        return Err(anyhow::anyhow!("Component not found: {}", component_id));
-    }
+        .map_err(|e| anyhow::anyhow!("Component not found: {} ({})", component_id, e))?;
 
     let policy_info = lifecycle_manager.get_policy_info(component_id).await;
 
@@ -519,6 +516,12 @@ pub async fn handle_grant_storage_permission(
         .ok_or_else(|| anyhow::anyhow!("Missing required argument: 'details'"))?;
 
     info!("Granting storage permission to component {}", component_id);
+
+    // Ensure component is loaded (lazy compile)
+    lifecycle_manager
+        .ensure_component_loaded(component_id)
+        .await
+        .map_err(|e| anyhow::anyhow!("Component not found: {} ({})", component_id, e))?;
 
     let result = lifecycle_manager
         .grant_permission(component_id, "storage", details)
@@ -569,6 +572,11 @@ pub async fn handle_grant_network_permission(
         .ok_or_else(|| anyhow::anyhow!("Missing required argument: 'details'"))?;
 
     info!("Granting network permission to component {}", component_id);
+
+    lifecycle_manager
+        .ensure_component_loaded(component_id)
+        .await
+        .map_err(|e| anyhow::anyhow!("Component not found: {} ({})", component_id, e))?;
 
     let result = lifecycle_manager
         .grant_permission(component_id, "network", details)
@@ -623,6 +631,11 @@ pub async fn handle_grant_environment_variable_permission(
         component_id
     );
 
+    lifecycle_manager
+        .ensure_component_loaded(component_id)
+        .await
+        .map_err(|e| anyhow::anyhow!("Component not found: {} ({})", component_id, e))?;
+
     let result = lifecycle_manager
         .grant_permission(component_id, "environment", details)
         .await;
@@ -672,6 +685,11 @@ pub async fn handle_grant_memory_permission(
         .ok_or_else(|| anyhow::anyhow!("Missing required argument: 'details'"))?;
 
     info!("Granting memory permission to component {}", component_id);
+
+    lifecycle_manager
+        .ensure_component_loaded(component_id)
+        .await
+        .map_err(|e| anyhow::anyhow!("Component not found: {} ({})", component_id, e))?;
 
     let result = lifecycle_manager
         .grant_permission(component_id, "resource", details)
@@ -731,6 +749,11 @@ pub async fn handle_revoke_storage_permission(
         uri, component_id
     );
 
+    lifecycle_manager
+        .ensure_component_loaded(component_id)
+        .await
+        .map_err(|e| anyhow::anyhow!("Component not found: {} ({})", component_id, e))?;
+
     let result = lifecycle_manager
         .revoke_storage_permission_by_uri(component_id, uri)
         .await;
@@ -783,6 +806,11 @@ pub async fn handle_revoke_network_permission(
         "Revoking network permission from component {}",
         component_id
     );
+
+    lifecycle_manager
+        .ensure_component_loaded(component_id)
+        .await
+        .map_err(|e| anyhow::anyhow!("Component not found: {} ({})", component_id, e))?;
 
     let result = lifecycle_manager
         .revoke_permission(component_id, "network", details)
@@ -837,6 +865,11 @@ pub async fn handle_revoke_environment_variable_permission(
         component_id
     );
 
+    lifecycle_manager
+        .ensure_component_loaded(component_id)
+        .await
+        .map_err(|e| anyhow::anyhow!("Component not found: {} ({})", component_id, e))?;
+
     let result = lifecycle_manager
         .revoke_permission(component_id, "environment", details)
         .await;
@@ -882,6 +915,11 @@ pub async fn handle_reset_permission(
         .ok_or_else(|| anyhow::anyhow!("Missing required argument: 'component_id'"))?;
 
     info!("Resetting all permissions for component {}", component_id);
+
+    lifecycle_manager
+        .ensure_component_loaded(component_id)
+        .await
+        .map_err(|e| anyhow::anyhow!("Component not found: {} ({})", component_id, e))?;
 
     let result = lifecycle_manager.reset_permission(component_id).await;
 

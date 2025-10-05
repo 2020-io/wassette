@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash3
 
 # Adapted from https://docs.streamlit.io/deploy/tutorials/kubernetes
 

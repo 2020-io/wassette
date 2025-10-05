@@ -2,9 +2,12 @@
 # Licensed under the MIT license.
 
 # code is from https://github.com/bytecodealliance/componentize-py/blob/main/examples/sandbox/guest.py
+import contextlib
+import io
+import json
+
 import wit_world
 from wit_world.types import Err
-import json
 
 
 def handle(e: Exception) -> Err[str]:
@@ -22,8 +25,11 @@ class WitWorld(wit_world.WitWorld):
         except Exception as e:
             raise handle(e)
 
-    def exec(self, statements: str) -> None:
+    def exec(self, statements: str) -> str:
+        buffer = io.StringIO()
         try:
-            exec(statements)
+            with contextlib.redirect_stdout(buffer), contextlib.redirect_stderr(buffer):
+                exec(statements)
+            return buffer.getvalue()
         except Exception as e:
             raise handle(e)

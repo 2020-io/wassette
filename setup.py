@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 from pkg_resources import parse_version
 from configparser import ConfigParser
 import setuptools, shlex
