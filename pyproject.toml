@@ -118,6 +118,10 @@ docs = [
   "mkdocstrings-python",
 ]
 
+dev = [
+  "ruff",
+]
+
 tests = [
   "pytest>=8,<9",
   "pytest-sugar>=0.9.6",
