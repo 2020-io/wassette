@@ -192,7 +192,8 @@ cython_debug/
 /assets/artifacts
 /assets/fastmcp/src
 /assets/pyscript/
-/assets/ruby/*-bin/
+/assets/ruby/ruby*-full/
+/assets/ruby/ruby*-minimal/
 /assets/ruby/*-src/
 /assets/usage
 /assets/wassette
