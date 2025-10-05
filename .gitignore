@@ -197,7 +197,7 @@ cython_debug/
 .DS_Store
 node_modules/
 _site/
-bin/
+#bin/
 log/
 logs/
 target/
