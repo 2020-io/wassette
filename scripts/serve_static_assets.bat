@@ -20,21 +20,19 @@ if exist "%ASSETS%" (
   set ASSETS=.
 )
 
-set ARGS=8080
-rem set ARGS=-d "%ASSETS%"
-rem set ARGS=%ARGS% --protocol=HTTP/1.0
-rem set ARGS=%ARGS% --bind=127.0.0.1
-rem set ARGS=%ARGS% 8080
-rem echo -^> python -m http.server %ARGS%
-rem call python -m http.server %ARGS%
-
-echo -^> python "%PYTHON_FILE%" %ARGS%
 pushd "%ASSETS%"
 set ASSETS=%CD%
-echo Running "%PYTHON_FILE%" from "%ASSETS%"
+popd
+
+rem set ARGS=8080
+set ARGS=-d "%ASSETS%"
+set ARGS=%ARGS% --protocol=HTTP/1.0
+set ARGS=%ARGS% --bind=127.0.0.1
+set ARGS=%ARGS% 8080
+set PYTHON_FILE=-m http.server
+echo -^> python %PYTHON_FILE% %ARGS%
 call python %PYTHON_FILE% %ARGS%
 set ret=%ERRORLEVEL%
-popd
 echo ^<- python returned %ret%
 echo.
 
