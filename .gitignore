@@ -198,6 +198,8 @@ cython_debug/
 log/
 logs/
 target/
+temp/
+tmp/
 .DS_Store
 node_modules/
 _site/
@@ -211,8 +213,6 @@ TMP/
 
 /venv*.txt
 old/
-temp/
-tmp/
 *.crdownload
 *.tmp
 *.old
