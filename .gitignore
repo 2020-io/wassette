@@ -184,19 +184,16 @@ cython_debug/
 .well-known/
 marimo/
 /assets/artifacts
-/assets/fastmcp/docs
 /assets/fastmcp/src
 /assets/wassette
 
-# generated output
-.DS_Store
-node_modules/
-_site/
-bin/
-logs/
-old/
-#*.pp.json
-*.log
+/xmp/node_modules
+
+/target
+/bin
+/result
+/logs
+/old
 *.old
 *.out
 *.unsorted
