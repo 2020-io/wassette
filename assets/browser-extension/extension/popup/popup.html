@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MCP Extension</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>MCP Extension Platform</h1>
+      <p class="subtitle">WASM Agent Management</p>
+    </header>
+
+    <div class="section">
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <h2>Available Agents</h2>
+        <button id="btn-refresh-catalog" class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;">
+          Refresh Catalog
+        </button>
+      </div>
+      <div id="catalog-list" class="agents-list">
+        <div class="loading">Loading catalog...</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>Installed Agents</h2>
+      <div id="agents-list" class="agents-list">
+        <div class="loading">Loading agents...</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>Actions</h2>
+      <div class="actions">
+        <button id="btn-storage-info" class="btn btn-secondary">
+          Storage Info
+        </button>
+      </div>
+    </div>
+
+    <div class="section" id="python-shell-section" style="display: none;">
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <h2>Python Shell</h2>
+        <button id="btn-close-shell" class="btn-text">Close</button>
+      </div>
+      <div style="background: #1e1e1e; border-radius: 4px; padding: 12px;">
+        <pre id="shell-output" style="margin: 0 0 8px 0; min-height: 200px; max-height: 400px; overflow-y: auto; color: #ddd; font-size: 13px; font-family: 'Courier New', monospace;"></pre>
+        <div style="display: flex; gap: 8px;">
+          <input type="text" id="shell-input" placeholder=">>> " style="flex: 1; background: #2d2d2d; border: 1px solid #444; color: #ddd; padding: 6px; font-family: 'Courier New', monospace;" />
+          <button id="btn-shell-run" class="btn btn-primary" style="padding: 6px 16px;">Run</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="output" class="output hidden">
+      <h3>Output</h3>
+      <pre id="output-content"></pre>
+      <button id="btn-clear-output" class="btn-text">Clear</button>
+    </div>
+
+    <footer>
+      <span id="status" class="status">Ready</span>
+      <span class="version">v1.0.0</span>
+    </footer>
+  </div>
+
+  <script type="module" src="popup.js"></script>
+</body>
+</html>

@@ -1,0 +1,37 @@
+{
+  "agentId": "pyodide-test",
+  "name": "Pyodide Test Agent",
+  "version": "1.0.0",
+  "description": "Test agent using Pyodide runtime for infrastructure validation",
+  "runtime": "pyodide",
+  "author": "MCP Platform",
+  "category": "testing",
+  "permissions": {
+    "required": [
+      "page.read",
+      "console.log"
+    ],
+    "optional": [
+      "clipboard.write"
+    ]
+  },
+  "capabilities": {
+    "maxMemory": 104857600,
+    "networkAccess": false,
+    "executionTimeout": 30000,
+    "domAccess": "read-only"
+  },
+  "defaultCode": "print('Hello from Pyodide!')\nprint(f'Agent ID: {agent_id}')\nprint(f'Page title: {restricted_api.getPageText()[:100]}')",
+  "triggers": {
+    "urlPatterns": [
+      "<all_urls>"
+    ],
+    "events": [
+      "userAction"
+    ]
+  },
+  "hash": "5d20d8d9f5aa307960eecc2b3a72cdd618fa0c5df6c3d3c16c6111013c0c266e",
+  "signature": "IkG1lRMWuRKrUWV4geoc8YWg6JQhYBjnQsZO3VJ7dpHgtppNtMViY+V5rujelPiDwPMulZoW8EwKAOJFdHSrkTofIC+QdVSDwbYa7AkfHspnw03SBPhcl+dcs1ewys8dcWW6Km8MY2iX0ayUxFULPtoo/P/iBlz1hOwOzH0lcT/Iz+mO+rQVkB9jL4gGNwfXlL1yAl8lg4N1J4QQM7uOxYWyxbTvQW8DQH2GJmoyiNAGVSm0il8l1pypgo0VMnyLImgx/tHygsojTY13rKDK9u5Uw7vTffL5PtaOGqWpKTg6GO+RMrlHXdqlLpiILzF38L680CmSL2W/DiFsE6iqww==",
+  "publishedAt": "2025-10-02T00:00:00Z",
+  "expiresAt": null
+}

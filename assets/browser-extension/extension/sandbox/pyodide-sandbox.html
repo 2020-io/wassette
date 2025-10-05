@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Pyodide Sandbox</title>
+</head>
+<body>
+  <script>
+    // Load Pyodide from CDN
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.js';
+    script.onload = async () => {
+      window.pyodideInstance = await loadPyodide({
+        indexURL: 'https://cdn.jsdelivr.net/pyodide/v0.24.1/full/'
+      });
+
+      // Notify parent that Pyodide is ready
+      window.parent.postMessage({ type: 'pyodide-ready' }, '*');
+
+      console.log('[Sandbox] Pyodide loaded');
+    };
+    script.onerror = (error) => {
+      window.parent.postMessage({ type: 'pyodide-error', error: error.message }, '*');
+    };
+    document.head.appendChild(script);
+
+    // Listen for execution requests from parent
+    window.addEventListener('message', async (event) => {
+      if (event.data.type === 'execute-python') {
+        try {
+          const { code, agentId, agentName, restrictedAPI } = event.data;
+
+          // Set up globals
+          window.pyodideInstance.globals.set('agent_id', agentId);
+          window.pyodideInstance.globals.set('agent_name', agentName || agentId);
+
+          // Create restricted API proxy
+          const apiProxy = {};
+          for (const [key, value] of Object.entries(restrictedAPI)) {
+            // If value is true, it means the API is available and needs proxying
+            // Otherwise it's a primitive value we can use directly
+            if (value === true || typeof value === 'function') {
+              apiProxy[key] = (...args) => {
+                // Post message to parent to execute API call
+                return new Promise((resolve, reject) => {
+                  const callId = Math.random().toString(36);
+
+                  const handler = (e) => {
+                    if (e.data.type === 'api-response' && e.data.callId === callId) {
+                      window.removeEventListener('message', handler);
+                      if (e.data.error) {
+                        reject(new Error(e.data.error));
+                      } else {
+                        resolve(e.data.result);
+                      }
+                    }
+                  };
+
+                  window.addEventListener('message', handler);
+                  window.parent.postMessage({
+                    type: 'api-call',
+                    callId,
+                    method: key,
+                    args
+                  }, '*');
+                });
+              };
+            } else {
+              apiProxy[key] = value;
+            }
+          }
+
+          window.pyodideInstance.globals.set('restricted_api', apiProxy);
+
+          // Capture stdout
+          let stdout = '';
+          const captureStdout = `
+import sys
+from io import StringIO
+_stdout_capture = StringIO()
+sys.stdout = _stdout_capture
+`;
+          await window.pyodideInstance.runPythonAsync(captureStdout);
+
+          // Execute Python code
+          let result;
+          try {
+            result = await window.pyodideInstance.runPythonAsync(code);
+          } finally {
+            // Get captured stdout
+            const getStdout = `
+_stdout_value = _stdout_capture.getvalue()
+_stdout_capture.truncate(0)
+_stdout_capture.seek(0)
+_stdout_value
+`;
+            stdout = await window.pyodideInstance.runPythonAsync(getStdout);
+          }
+
+          // Combine stdout and result
+          let output = '';
+          if (stdout) output += stdout;
+          if (result !== undefined && result !== null) {
+            if (stdout) output += '\n';
+            output += String(result);
+          }
+
+          window.parent.postMessage({
+            type: 'execution-result',
+            success: true,
+            result: output || undefined
+          }, '*');
+        } catch (error) {
+          window.parent.postMessage({
+            type: 'execution-result',
+            success: false,
+            error: error.message
+          }, '*');
+        }
+      }
+    });
+  </script>
+</body>
+</html>

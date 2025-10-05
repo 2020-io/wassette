@@ -1,0 +1,15 @@
+{
+  "name": "mcp-extension",
+  "version": "1.0.0",
+  "description": "MCP Browser Extension Platform",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test runner configured yet\" && exit 1",
+    "lint": "eslint .",
+    "pack": "node scripts/pack-extension.js"
+  },
+  "keywords": ["mcp", "wasm", "browser-extension"],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {}
+}
