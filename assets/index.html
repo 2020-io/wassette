@@ -52,9 +52,8 @@
   <body>
     <div id="status"></div><br/>
     <div id="url" style="display:none"></div>
-
+    <div id="wasm" style="display:none"></div>
 <!--
-    <div id="wasm"></div>
     <div id="content">Waiting for content...</div>
     <script type="text/javascript">
       console.log("wasm enter", this);
@@ -145,49 +144,25 @@
         status.textContent = msg;
     </script>
 -->
-
     <script type="mpy">
       from js import document
       url = document.getElementById("url").innerText;
 
-      import time
       msg = f"micropython enter {url}"
       print(msg)
       status = document.getElementById("status")
       status.innerText = msg
 
-      #for i in range(1):
-      #  print(f"micropython: loop {i}")
-      #  time.sleep(1)
+      import time
+      sleep_time = 0
+      for i in range(1):
+        print(f"main: sleep {sleep_time} (loop {i})")
+        time.sleep(sleep_time)
+      # end of for loop
 
       msg = f"micropython exit {url}"
       print(msg)
       status.innerText = msg
-    </script>
-
-    <script type="py">
-      print("start of pyodide")
-      #from pyscript import display
-      #display(sys.version)
-
-      import sys
-
-      import inspect
-      self = inspect.currentframe()
-      id = id(self)
-      
-      print(f"-> runPython start {id}", self)
-      print("globals", globals())
-      
-      import sys
-      print("--> modules start", sorted(sys.modules.keys()))
-      
-      #import micropip
-      #print(micropip.list()) # shows only 'micropip'
-      #print(micropip.list()) # shows 'micropip' + newly installed packages
-      #print("<-- modules end", sorted(sys.modules.keys()))
-
-      print(f"<- runPython exit {id}", self)
     </script>
 
     <script type="text/javascript">
@@ -201,7 +176,7 @@
         }
 
         relative_url = this.location.pathname;
-        console.log("main relative_url", url);
+        console.log("main relative_url", relative_url);
 
         url = this.location.href;
         console.log("main url", url);
@@ -222,7 +197,6 @@
         const thread_id = threading.get_ident();
         console.log("thread_id", thread_id);
 
-/*
         iframe_element = document.querySelector('iframe');
         console.log("iframe_element", iframe_element);
         if (iframe_element) {
@@ -252,40 +226,80 @@
 
                 if wasm and len(wasm) > 0:
                   print("Removing old iframe", iframe_element)
+
+                  import time
+                  sleep_time = 1
+                  for i in range(1):
+                    print(f"main: sleep {sleep_time} (loop {i})")
+                    time.sleep(sleep_time)
+                  # end of for loop
+
                   iframe_element.outerHTML = "" # overwrite the iframe
                   iframe_element = None
           `);
           console.log("old iframe", iframe_element); // this should be deleted now
           iframe_element = null;
         } else {
-          await pyodide.runPython(`
+          const micropip = await pyodide.loadPackage("micropip");
+          //const micropip = pyodide.pyimport("micropip");
+          console.log("micropip", micropip);
+
+          await pyodide.runPythonAsync(`
             import inspect
             self = inspect.currentframe()
             id = id(self)
 
             print(f"-> runPython start {id}", self)
-            print("globals", globals())
+            print("--> globals", globals())
 
             import sys
             #print("--> modules start", sorted(sys.modules.keys()))
+            
             import micropip
-            #print(micropip.list()) # shows only 'micropip'
-
             print(micropip.list()) # shows only 'micropip'
-            #print("<-- modules end", sorted(sys.modules.keys()))
+            pydantic = await micropip.install('pydantic')
+            print(micropip.list()) # shows only 'micropip'
+            
+            print("<-- modules end", sorted(sys.modules.keys()))
             print(f"<- runPython exit {id}", self)
           `);
         }
-*/
 
         msg = "main exit " + url
         console.log(msg)
         //console.log("main exit", this);
         if (element)
           element.textContent = msg;
-      }
+      } // main()
 
       main();
     </script>
+
+    <script type="py">
+      #import sys
+      #import pyscript
+      #print(f"Python version:", sys.version)
+      #pyscript.display(f"Python version: {sys.version}")
+
+      import inspect
+      self = inspect.currentframe()
+      id = id(self)
+      
+      print(f"-> runPython start {id}", self)
+      print("globals", globals())
+      
+      import sys
+      print("--> modules", sorted(sys.modules.keys()))
+
+      import time
+      sleep_time = 0
+      for i in range(1):
+        print(f"pyodide: sleep {sleep_time} (loop {i})")
+        time.sleep(sleep_time)
+      # end of for loop
+
+      print(f"<- runPython exit {id}", self)
+    </script>
+
   </body>
 </html>
